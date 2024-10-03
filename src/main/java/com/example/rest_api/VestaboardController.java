@@ -76,10 +76,28 @@ public class VestaboardController {
         }
     }
 
+    /**
+     * Endpoint to get the authentication status.
+     *
+     * @return a Response object containing the status of the authentication.
+     */
+    @GetMapping("/auth_status")
+    public Response getAuthStatus() {
+        return new Response("success", spot.getAuthStatus());
+    }
+
+
     @Scheduled(fixedRate = 5000)
     public void update() {
         // This will run every 5 seconds to update the board.
         System.out.println("Checking for update...");
-        // spot.run();
+        try {
+            Boolean isUpdated = spot.run();
+            if (!isUpdated) {
+                System.out.println("No update");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

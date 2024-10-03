@@ -1,5 +1,8 @@
 package com.example.rest_api;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import se.michaelthelin.spotify.SpotifyApi;
 import se.michaelthelin.spotify.SpotifyHttpManager;
 import se.michaelthelin.spotify.model_objects.IPlaylistItem;
@@ -41,7 +44,7 @@ public class Spotify extends Vestaboard {
         // This used to be ONE line in python.
         final AuthorizationCodeUriRequest authorizationCodeUriRequest = spot
                 .authorizationCodeUri()
-                .scope("user-modify-playback-state user-read-playback-state")
+                .scope("user-modify-playback-state user-read-playback-state user-read-currently-playing")
                 .show_dialog(true)
                 .build();
         final String authURI = authorizationCodeUriRequest.execute().toString();
@@ -82,6 +85,22 @@ public class Spotify extends Vestaboard {
         }
     }
 
+    public Boolean getAuthStatus() {
+        // TODO: eventually this will return the auth status and the user connected.
+        return isAuthenticated;
+    }
+
+
+    private String trimFeatures(String title) {
+        // use regex to remove features from the title.
+        String pattern = "\\s*\\(.*?\\b(ft|featuring|with|feat)\\b.*?\\)";
+
+        Pattern regex = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
+        Matcher matcher = regex.matcher(title);
+
+        return matcher.replaceAll("");
+    }
+
     public String[] getCurrentSong() throws NotAuthenticated {
         if (isAuthenticated) {
             final GetUsersCurrentlyPlayingTrackRequest currentlyPlayingRequest = spot.getUsersCurrentlyPlayingTrack()
@@ -89,7 +108,7 @@ public class Spotify extends Vestaboard {
             try {
                 final CurrentlyPlaying currentlyPlaying = currentlyPlayingRequest.execute();
                 if (currentlyPlaying != null) { // Check if a song is actually playing at the moment.
-                    String songName = currentlyPlaying.getItem().getName();
+                    String songName = trimFeatures(currentlyPlaying.getItem().getName());
 
                     /*
                      * DONE: Developers of this library did not think to add a method to get the
@@ -159,36 +178,32 @@ public class Spotify extends Vestaboard {
     }
 
     public boolean run() throws NotAuthenticated {
-        if (isAuthenticated) {
-            Component nowPlaying = new Component();
-            nowPlaying.setAlign("top");
-            nowPlaying.setJustify("left");
+        Component nowPlaying = new Component();
+        nowPlaying.setAlign("top");
+        nowPlaying.setJustify("left");
 
-            try {
-                String[] currentSong = getCurrentSong();
-                String nextUp = getNextUp();
-                if (currentSong != null && !currentSong[0].equals(lastSong)) {
-                    System.err.println("Updating current song " + currentSong[0] + " from " + lastSong);
-                    nowPlaying.setBody(
-                            "{66} Now Playing\n{64} " +
-                                    currentSong[0] +
-                                    "\n{64} " +
-                                    currentSong[1] +
-                                    "\n{65} Next Up\n{67} " +
-                                    nextUp);
-                    String VBML = nowPlaying.getVBML();
-                    System.out.println(super.sendRaw(VBML));
-                    lastSong = currentSong[0];
-                    return true;
-                } else {
-                    return false;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+        try {
+            String[] currentSong = getCurrentSong();
+            String nextUp = getNextUp();
+            if (isAuthenticated && currentSong != null && !currentSong[0].equals(lastSong)) {
+                System.err.println("Updating current song " + currentSong[0] + " from " + lastSong);
+                nowPlaying.setBody(
+                        "{66} Now Playing\n{64} " +
+                                currentSong[0] +
+                                "\n{68} " +
+                                currentSong[1] +
+                                "\n{65} Next Up\n{67} " +
+                                nextUp);
+                String VBML = nowPlaying.getVBML();
+                System.out.println(super.sendRaw(VBML));
+                lastSong = currentSong[0];
+                return true;
+            } else {
                 return false;
             }
-        } else {
-            throw new NotAuthenticated("Not authenticated yet!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
         }
     }
 }

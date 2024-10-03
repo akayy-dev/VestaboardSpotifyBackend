@@ -43,6 +43,7 @@ public class VestaboardApiApplication {
 				registry.addMapping("/current").allowedOrigins("http://localhost:3001");
 				registry.addMapping("/get_auth_url").allowedOrigins("http://localhost:3001");
 				registry.addMapping("/send_auth_token").allowedOrigins("http://localhost:3001");
+				registry.addMapping("/auth_status").allowedOrigins("http://localhost:3001");
 			}
 		};
 	}
