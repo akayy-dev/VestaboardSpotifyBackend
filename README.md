@@ -5,7 +5,7 @@ The VestaboardSpotify API is an open-source backend service that facilitates the
 - Authentication with Spotify: Users can authenticate their Spotify accounts to access the API's functionalities.  
 - Current Song Information: Retrieve the currently playing song and the next up in the queue.  
 - Add Songs to Queue: Users can request to add songs to their Spotify queue.  
-- A#thentication Status: Check the current authentication status of the user.  
+- Authentication Status: Check the current authentication status of the user.  
 - Connected User: Get the Spotify user currently authenticated with the API.  
 - Real-Time Updates: The API updates the Vestaboard every 5 seconds to reflect current music activity.  
 ## Endpoints
