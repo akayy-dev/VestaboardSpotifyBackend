@@ -86,6 +86,10 @@ public class VestaboardController {
         return new Response("success", spot.getAuthStatus());
     }
 
+    @GetMapping("/connected_user")
+    public String getConnectedUser() {
+        return spot.getConnectedUser();
+    }
 
     @Scheduled(fixedRate = 5000)
     public void update() {

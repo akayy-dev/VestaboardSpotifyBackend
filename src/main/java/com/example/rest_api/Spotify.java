@@ -3,6 +3,7 @@ package com.example.rest_api;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import se.michaelthelin.spotify.model_objects.specification.User;
 import se.michaelthelin.spotify.SpotifyApi;
 import se.michaelthelin.spotify.SpotifyHttpManager;
 import se.michaelthelin.spotify.model_objects.IPlaylistItem;
@@ -44,7 +45,7 @@ public class Spotify extends Vestaboard {
         // This used to be ONE line in python.
         final AuthorizationCodeUriRequest authorizationCodeUriRequest = spot
                 .authorizationCodeUri()
-                .scope("user-modify-playback-state user-read-playback-state user-read-currently-playing")
+                .scope("user-modify-playback-state user-read-playback-state user-read-currently-playing user-read-email user-read-private")
                 .show_dialog(true)
                 .build();
         final String authURI = authorizationCodeUriRequest.execute().toString();
@@ -60,6 +61,7 @@ public class Spotify extends Vestaboard {
             spot.setAccessToken(creds.getAccessToken());
             spot.setRefreshToken(creds.getRefreshToken());
             isAuthenticated = true;
+            System.out.println("Successfully authenticated as " + getConnectedUser() + ".");
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -85,11 +87,29 @@ public class Spotify extends Vestaboard {
         }
     }
 
-    public Boolean getAuthStatus() {
-        // TODO: eventually this will return the auth status and the user connected.
-        return isAuthenticated;
+    public String getConnectedUser() {
+        if (isAuthenticated) {
+            try {
+                final User me = spot
+                        .getCurrentUsersProfile()
+                        .build()
+                        .execute();
+                final String username = me.getDisplayName().toString();
+                return username;
+            } catch (Exception e) {
+                System.err.println("Could not get connected user.");
+                return null;
+            }
+        } else {
+            return null;
+        }
     }
 
+    public Boolean getAuthStatus() {
+        // TODO: eventually this will return the auth status and the user connected.
+        System.out.println(getConnectedUser());
+        return isAuthenticated;
+    }
 
     private String trimFeatures(String title) {
         // use regex to remove features from the title.
@@ -141,7 +161,7 @@ public class Spotify extends Vestaboard {
                         .build()
                         .execute();
                 final IPlaylistItem nextUp = queue.getQueue().get(0);
-                return nextUp.getName();
+                return trimFeatures(nextUp.getName());
             } catch (Exception e) {
                 e.printStackTrace();
                 return null;
@@ -195,8 +215,13 @@ public class Spotify extends Vestaboard {
                                 "\n{65} Next Up\n{67} " +
                                 nextUp);
                 String VBML = nowPlaying.getVBML();
-                System.out.println(super.sendRaw(VBML));
-                lastSong = currentSong[0];
+                String result = super.sendRaw(VBML);
+                System.out.println(result);
+                if (!result.equals(
+                        "<!DOCTYPE html><html lang=\"en\"><head><title>Internal server error</title></head><body><main><h1>Internal server error</h1></main></body></html>")) {
+                    // if there isn't a server error.
+                    lastSong = currentSong[0];
+                }
                 return true;
             } else {
                 return false;
