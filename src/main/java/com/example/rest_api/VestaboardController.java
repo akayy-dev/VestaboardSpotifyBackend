@@ -1,5 +1,7 @@
 package com.example.rest_api;
 
+import java.util.HashMap;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,44 +39,27 @@ public class VestaboardController {
     }
 
     @GetMapping("/current")
-    public Response getCurrent() {
-        try {
-            final String[] currentSong = spot.getCurrentSong();
-            final String nextUp = spot.getNextUp();
-            if (currentSong != null && nextUp != null) {
-                Song currentSongObject = new Song(currentSong[0], currentSong[1]);
-                Song nextUpObject = new Song(nextUp, "N/A");
-                return new Response(
-                        "success",
-                        new Song[] { currentSongObject, nextUpObject });
-            } else {
-                // Protect against cases where a song isn't playing.
-                return new Response(
-                        "failure",
-                        new Song("No song playing", "No artist"));
-            }
-        } catch (Exception e) {
-            return new Response("failure", e.getMessage());
-        }
+    public void getCurrent() {
+        HashMap<String, String> currentSong = spot.getCurrentSong();
     }
 
-    @PostMapping("/request_song")
-    public Record requestSong(
-            @RequestParam(value = "title") String title,
-            @RequestParam(value = "artist") String artist) {
-        try {
-            Song requested = spot.addToQueue(title, artist);
-            if (requested != null) {
-                return new Response("success", requested);
-            } else {
-                return new Response(
-                        "failure",
-                        new Song("No song added", "No artist added"));
-            }
-        } catch (Exception e) {
-            return new Response("failure", e.getMessage());
-        }
-    }
+    // @PostMapping("/request_song")
+    // public Record requestSong(
+    //         @RequestParam(value = "title") String title,
+    //         @RequestParam(value = "artist") String artist) {
+    //     try {
+    //         Song requested = spot.addToQueue(title, artist);
+    //         if (requested != null) {
+    //             return new Response("success", requested);
+    //         } else {
+    //             return new Response(
+    //                     "failure",
+    //                     new Song("No song added", "No artist added"));
+    //         }
+    //     } catch (Exception e) {
+    //         return new Response("failure", e.getMessage());
+    //     }
+    // }
 
     /**
      * Endpoint to get the authentication status.
