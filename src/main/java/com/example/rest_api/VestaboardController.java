@@ -43,6 +43,11 @@ public class VestaboardController {
         HashMap<String, String> currentSong = spot.getCurrentSong();
     }
 
+    @GetMapping("/logout")
+    public void logout() {
+        spot.logout();
+    }
+
     // @PostMapping("/request_song")
     // public Record requestSong(
     //         @RequestParam(value = "title") String title,

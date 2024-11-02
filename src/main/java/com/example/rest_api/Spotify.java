@@ -1,24 +1,8 @@
 package com.example.rest_api;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.hc.core5.http.ParseException;
-
-import se.michaelthelin.spotify.model_objects.specification.User;
-import se.michaelthelin.spotify.SpotifyApi;
-import se.michaelthelin.spotify.SpotifyHttpManager;
-import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
-import se.michaelthelin.spotify.model_objects.IPlaylistItem;
-import se.michaelthelin.spotify.model_objects.credentials.AuthorizationCodeCredentials;
-import se.michaelthelin.spotify.model_objects.miscellaneous.CurrentlyPlaying;
-import se.michaelthelin.spotify.model_objects.special.PlaybackQueue;
-import se.michaelthelin.spotify.model_objects.specification.Paging;
-import se.michaelthelin.spotify.model_objects.specification.Track;
-import se.michaelthelin.spotify.requests.authorization.authorization_code.AuthorizationCodeUriRequest;
-import se.michaelthelin.spotify.requests.data.player.GetUsersCurrentlyPlayingTrackRequest;
 
 public class Spotify extends Vestaboard {
 
@@ -49,6 +33,13 @@ public class Spotify extends Vestaboard {
             e.printStackTrace();
         }
         return spot.isAuthenticated();
+    }
+
+    public void logout() {
+        spot.resetAuth();
+        System.out.println("Logged out, clearing the board.");
+        System.out.println(sendMessage(" ")); // Send an empty string to clear the board.
+        
     }
 
     // private Track[] searchForTrack(String query) throws NotAuthenticated {
@@ -114,30 +105,31 @@ public class Spotify extends Vestaboard {
         return null;
     }
 
-    // public Song addToQueue(String songName, String songArtist) throws NotAuthenticated {
-    //     if (isAuthenticated) {
-    //         // Search for the song
-    //         Track[] tracks = searchForTrack(songName + " " + songArtist);
+    // public Song addToQueue(String songName, String songArtist) throws
+    // NotAuthenticated {
+    // if (isAuthenticated) {
+    // // Search for the song
+    // Track[] tracks = searchForTrack(songName + " " + songArtist);
 
-    //         try {
-    //             // Add the selected track to the queue
-    //             String selectedTrackURI = tracks[0].getUri();
-    //             spot
-    //                     .addItemToUsersPlaybackQueue(selectedTrackURI)
-    //                     .build()
-    //                     .execute();
+    // try {
+    // // Add the selected track to the queue
+    // String selectedTrackURI = tracks[0].getUri();
+    // spot
+    // .addItemToUsersPlaybackQueue(selectedTrackURI)
+    // .build()
+    // .execute();
 
-    //             String songNameInQueue = tracks[0].getName();
-    //             String songArtistInQueue = tracks[0].getArtists()[0].getName();
+    // String songNameInQueue = tracks[0].getName();
+    // String songArtistInQueue = tracks[0].getArtists()[0].getName();
 
-    //             return new Song(songNameInQueue, songArtistInQueue);
-    //         } catch (Exception e) {
-    //             e.printStackTrace();
-    //             return null;
-    //         }
-    //     } else {
-    //         throw new NotAuthenticated("Not authenticated yet!");
-    //     }
+    // return new Song(songNameInQueue, songArtistInQueue);
+    // } catch (Exception e) {
+    // e.printStackTrace();
+    // return null;
+    // }
+    // } else {
+    // throw new NotAuthenticated("Not authenticated yet!");
+    // }
     // }
 
     public boolean run() throws NotAuthenticated {
@@ -146,32 +138,39 @@ public class Spotify extends Vestaboard {
         nowPlaying.setJustify("left");
 
         try {
-            HashMap<String, String> currentSong = getCurrentSong();
-            String trackName = currentSong.get("name");
-            String trackArtist = currentSong.get("artist");
-            String nextUp = getNextUp();
-            if (spot.isAuthenticated() && currentSong != null && !trackName.equals(lastSong)) {
-                System.err.println("Updating current song " + trackName + " from " + lastSong);
-                nowPlaying.setBody(
-                        "{66} Now Playing\n{64} " +
-                                trackName +
-                                "\n{68} " +
-                                trackArtist +
-                                "\n{65} Next Up\n{67} " +
-                                nextUp);
-                String VBML = nowPlaying.getVBML();
-                String result = super.sendRaw(VBML);
-                System.out.println(result);
-                if (!result.equals(
-                        "<!DOCTYPE html><html lang=\"en\"><head><title>Internal server error</title></head><body><main><h1>Internal server error</h1></main></body></html>")) {
-                    // if there isn't a server error.
-                    lastSong = trackName;
+            if (spot.isAuthenticated()) {
+                HashMap<String, String> currentSong = getCurrentSong();
+                String trackName = trimFeatures(currentSong.get("name"));
+                String trackArtist = currentSong.get("artist");
+                String nextUp = trimFeatures(getNextUp());
+
+                if (currentSong != null && !trackName.equals(lastSong)) {
+                    System.err.println("Updating current song " + trackName + " from " + lastSong);
+                    nowPlaying.setBody(
+                            "{66} Now Playing\n{64} " +
+                                    trackName +
+                                    "\n{68} " +
+                                    trackArtist +
+                                    "\n{65} Next Up\n{67} " +
+                                    nextUp);
+                    String VBML = nowPlaying.getVBML();
+                    String result = super.sendRaw(VBML);
+                    System.out.println(result);
+                    if (!result.equals(
+                            "<!DOCTYPE html><html lang=\"en\"><head><title>Internal server error</title></head><body><main><h1>Internal server error</h1></main></body></html>")) {
+                        // if there isn't a server error.
+                        lastSong = trackName;
+                    }
+                    return true;
+                } else {
+                    return false;
                 }
-                return true;
             } else {
+                System.out.println("Not authenticated, not checking for updates.");
                 return false;
             }
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             e.printStackTrace();
             return false;
         }

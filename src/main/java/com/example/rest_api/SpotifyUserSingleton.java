@@ -222,6 +222,16 @@ public class SpotifyUserSingleton {
 		return queueList.toArray(new String[0]);
 	}
 
+	/**
+	 * Resets the authentication tokens and updates the authentication status.
+	 * This method sets the access token and refresh token to null, and marks the user as not authenticated.
+	 */
+	public void resetAuth() {
+		spot.setAccessToken(null);
+		spot.setRefreshToken(null);
+		this.isAuthenticated = false;
+	}
+
 	public static void main(String[] args) {
 		// Simple test to make sure everything works.
 		String clientID = System.getenv("CLIENT_ID");
@@ -246,6 +256,5 @@ public class SpotifyUserSingleton {
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}
-
 	}
 }
