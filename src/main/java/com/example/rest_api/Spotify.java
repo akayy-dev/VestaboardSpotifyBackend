@@ -1,5 +1,6 @@
 package com.example.rest_api;
 
+import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -113,6 +114,11 @@ public class Spotify extends Vestaboard {
         return null;
     }
 
+    /**
+     * NOTE: Commented out because I haven't implemented this with thi
+     * // singleton pattern, will get to later.
+     */
+
     // public Song addToQueue(String songName, String songArtist) throws
     // NotAuthenticated {
     // if (isAuthenticated) {
@@ -146,6 +152,7 @@ public class Spotify extends Vestaboard {
         nowPlaying.setJustify("left");
 
         try {
+            // Won't run if spotify isn't authenticated, that way I won't get any errors.
             if (spot.isAuthenticated()) {
                 Song currentSong = getCurrentSong();
                 String trackName = trimFeatures(currentSong.getTitle());
@@ -162,14 +169,15 @@ public class Spotify extends Vestaboard {
                                     "\n{65} Next Up\n{67} " +
                                     nextUp);
                     String VBML = nowPlaying.getVBML();
-                    String result = super.sendRaw(VBML);
+                    HashMap<String, String> result = super.sendRaw(VBML);
                     System.out.println(result);
-                    // TODO: This is a stupid way of checking for failure, the response returns a JSON object
-                    // with a status code, WTF was I thinking?
-                    if (!result.equals(
-                            "<!DOCTYPE html><html lang=\"en\"><head><title>Internal server error</title></head><body><main><h1>Internal server error</h1></main></body></html>")) {
+                    String status = result.get("status");
+                    if (status.equals("ok")) {
                         // if there isn't a server error.
                         lastSong = trackName;
+                    } else {
+                        // if there is a server error.
+                        System.out.println("An error occurred trying to update the song name.");
                     }
                     return true;
                 } else {

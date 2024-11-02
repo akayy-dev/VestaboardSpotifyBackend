@@ -14,9 +14,11 @@ import org.apache.http.util.EntityUtils;
 public class Vestaboard {
 
     private String key;
+    private Gson gson;
 
     public Vestaboard(String key) {
         this.key = key;
+        this.gson = new Gson();
     }
 
     /**
@@ -40,9 +42,8 @@ public class Vestaboard {
 
             Gson gson = new Gson();
             Map<String, Map<String, String>> map = gson.fromJson(
-                result,
-                HashMap.class
-            );
+                    result,
+                    HashMap.class);
 
             // returns id and layout
             Map<String, String> message = map.get("currentMessage");
@@ -60,7 +61,8 @@ public class Vestaboard {
      * Sends a message to the Vestaboard.
      *
      * @param message The message to be sent to the Vestaboard.
-     * @return The response from the Vestaboard API as a String, or null if an error occurs.
+     * @return The response from the Vestaboard API as a String, or null if an error
+     *         occurs.
      */
     public String sendMessage(String message) {
         // send a message with a string
@@ -69,9 +71,8 @@ public class Vestaboard {
             request.setHeader("X-Vestaboard-Read-Write-Key", this.key);
             request.setHeader("Content-Type", "application/json");
             final String messageBody = String.format(
-                "{\"text\": \"%s\"}",
-                message
-            );
+                    "{\"text\": \"%s\"}",
+                    message);
             System.err.println(messageBody);
             final StringEntity body = new StringEntity(messageBody);
             request.setEntity(body);
@@ -83,8 +84,7 @@ public class Vestaboard {
             } catch (Exception e) {
                 e.printStackTrace();
                 System.err.println(
-                    "This might be because you are trying to submit text that is already on the board."
-                );
+                        "This might be because you are trying to submit text that is already on the board.");
                 return null;
             }
         } catch (Exception e) {
@@ -93,7 +93,7 @@ public class Vestaboard {
         }
     }
 
-    public String sendRaw(String body) {
+    public HashMap<String, String> sendRaw(String body) {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             HttpPost request = new HttpPost("https://rw.vestaboard.com");
             request.setHeader("X-Vestaboard-Read-Write-Key", this.key);
@@ -105,12 +105,12 @@ public class Vestaboard {
             try {
                 HttpResponse response = client.execute(request);
                 String result = EntityUtils.toString(response.getEntity());
-                return result;
+                HashMap<String, String> responseMap = gson.fromJson(result, HashMap.class);
+                return responseMap;
             } catch (Exception e) {
                 e.printStackTrace();
                 System.err.println(
-                    "This might be because you are trying to submit text that is already on the board."
-                );
+                        "This might be because you are trying to submit text that is already on the board.");
                 return null;
             }
         } catch (Exception e) {
