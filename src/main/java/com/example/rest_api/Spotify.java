@@ -1,6 +1,5 @@
 package com.example.rest_api;
 
-import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,7 +38,7 @@ public class Spotify extends Vestaboard {
         spot.resetAuth();
         System.out.println("Logged out, clearing the board.");
         System.out.println(sendMessage(" ")); // Send an empty string to clear the board.
-        
+
     }
 
     // private Track[] searchForTrack(String query) throws NotAuthenticated {
@@ -86,9 +85,9 @@ public class Spotify extends Vestaboard {
         return matcher.replaceAll("");
     }
 
-    public HashMap<String, String> getCurrentSong() {
+    public Song getCurrentSong() {
         try {
-            HashMap<String, String> currentSong = spot.getCurrentSong();
+            Song currentSong = spot.getCurrentSong();
             return currentSong;
         } catch (Throwable t) {
             t.printStackTrace();
@@ -99,6 +98,15 @@ public class Spotify extends Vestaboard {
     public String getNextUp() {
         try {
             return spot.getNextUp();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return null;
+    }
+
+    public Song[] getQueue() {
+        try {
+            return spot.getQueue();
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -139,9 +147,9 @@ public class Spotify extends Vestaboard {
 
         try {
             if (spot.isAuthenticated()) {
-                HashMap<String, String> currentSong = getCurrentSong();
-                String trackName = trimFeatures(currentSong.get("name"));
-                String trackArtist = currentSong.get("artist");
+                Song currentSong = getCurrentSong();
+                String trackName = trimFeatures(currentSong.getTitle());
+                String trackArtist = currentSong.getArtist();
                 String nextUp = trimFeatures(getNextUp());
 
                 if (currentSong != null && !trackName.equals(lastSong)) {
@@ -156,6 +164,8 @@ public class Spotify extends Vestaboard {
                     String VBML = nowPlaying.getVBML();
                     String result = super.sendRaw(VBML);
                     System.out.println(result);
+                    // TODO: This is a stupid way of checking for failure, the response returns a JSON object
+                    // with a status code, WTF was I thinking?
                     if (!result.equals(
                             "<!DOCTYPE html><html lang=\"en\"><head><title>Internal server error</title></head><body><main><h1>Internal server error</h1></main></body></html>")) {
                         // if there isn't a server error.
@@ -169,8 +179,7 @@ public class Spotify extends Vestaboard {
                 System.out.println("Not authenticated, not checking for updates.");
                 return false;
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }

@@ -2,7 +2,6 @@ package com.example.rest_api;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Scanner;
 
@@ -157,26 +156,19 @@ public class SpotifyUserSingleton {
 	 * @throws ParseException         If there is an issue parsing the response.
 	 * @throws SpotifyWebApiException If there is an issue with the Spotify Web API.
 	 */
-	public HashMap<String, String> getCurrentSong() throws IOException, ParseException, SpotifyWebApiException {
+	public Song getCurrentSong() throws IOException, ParseException, SpotifyWebApiException {
 		final GetUsersCurrentlyPlayingTrackRequest currentlyPlayingRequest = spot.getUsersCurrentlyPlayingTrack()
 				.build();
 		final CurrentlyPlaying currentlyPlaying = currentlyPlayingRequest.execute();
 		if (currentlyPlaying != null) { // Check if a song is actually playing at the moment.
 			String songName = currentlyPlaying.getItem().getName();
-
-			/*
-			 * DONE: Developers of this library did not think to add a method to get the
-			 * ARTIST of the song.
-			 * Have to do this manually.
-			 */
 			String songID = currentlyPlaying.getItem().getId();
-			Track trackObject = spot.getTrack(songID).build().execute();
-			String trackArtist = trackObject.getArtists()[0].getName();
 
-			HashMap<String, String> songData = new HashMap<String, String>();
-			songData.put("name", songName);
-			songData.put("artist", trackArtist);
-			return songData;
+			String trackArtist = getSongArtistFromID(songID);
+			String albumArt = getAlbumArtFromSongID(songID);
+
+			Song currentSong = new Song(songName, trackArtist, albumArt);
+			return currentSong;
 		} else {
 			System.err.println("No song is currently playing");
 			return null;
@@ -184,11 +176,28 @@ public class SpotifyUserSingleton {
 	}
 
 	/**
+	 * Get the artist of a song by its ID, because the library devs didn't think
+	 * that a Track
+	 * object should be have the artist in it's attributes.
+	 */
+	private String getSongArtistFromID(String ID) throws IOException, ParseException, SpotifyWebApiException {
+		Track trackObj = spot.getTrack(ID).build().execute();
+		String trackArtist = trackObj.getArtists()[0].getName();
+		return trackArtist;
+	}
+
+	private String getAlbumArtFromSongID(String ID) throws IOException, ParseException, SpotifyWebApiException {
+		Track trackObj = spot.getTrack(ID).build().execute();
+		String albumArt = trackObj.getAlbum().getImages()[0].getUrl();
+		return albumArt;
+	}
+
+	/**
 	 * Retrieves the name of the next item in the user's Spotify playback queue.
 	 *
 	 * @return the name of the next item in the playback queue.
-	 * @throws IOException if an I/O error occurs.
-	 * @throws ParseException if a parsing error occurs.
+	 * @throws IOException            if an I/O error occurs.
+	 * @throws ParseException         if a parsing error occurs.
 	 * @throws SpotifyWebApiException if an error occurs with the Spotify Web API.
 	 */
 	public String getNextUp() throws IOException, ParseException, SpotifyWebApiException {
@@ -203,28 +212,37 @@ public class SpotifyUserSingleton {
 	/**
 	 * Retrieves the current user's Spotify queue.
 	 *
-	 * @return An array of strings representing the names of the songs in the user's queue.
-	 * @throws IOException If an input or output exception occurs.
-	 * @throws ParseException If a parsing exception occurs.
-	 * @throws SpotifyWebApiException If an error occurs while interacting with the Spotify Web API.
+	 * @return An array of strings representing the names of the songs in the user's
+	 *         queue.
+	 * @throws IOException            If an input or output exception occurs.
+	 * @throws ParseException         If a parsing exception occurs.
+	 * @throws SpotifyWebApiException If an error occurs while interacting with the
+	 *                                Spotify Web API.
 	 */
-	public String[] getQueue() throws IOException, ParseException, SpotifyWebApiException {
+	public Song[] getQueue() throws IOException, ParseException, SpotifyWebApiException {
 		final List<IPlaylistItem> queue = spot
 				.getTheUsersQueue()
 				.build()
 				.execute()
 				.getQueue();
 
-		List<String> queueList = new ArrayList<String>();
+		List<Song> queueList = new ArrayList<Song>();
 		for (IPlaylistItem song : queue) {
-			queueList.add(song.getName());
+			String songName = song.getName();
+			String songID = song.getId();
+
+			String artistName = getSongArtistFromID(songID);
+			String albumArt = getAlbumArtFromSongID(songID);
+			Song songObj = new Song(songName, artistName, albumArt);
+			queueList.add(songObj);
 		}
-		return queueList.toArray(new String[0]);
+		return queueList.toArray(new Song[0]);
 	}
 
 	/**
 	 * Resets the authentication tokens and updates the authentication status.
-	 * This method sets the access token and refresh token to null, and marks the user as not authenticated.
+	 * This method sets the access token and refresh token to null, and marks the
+	 * user as not authenticated.
 	 */
 	public void resetAuth() {
 		spot.setAccessToken(null);
@@ -239,19 +257,20 @@ public class SpotifyUserSingleton {
 		String redirectURL = System.getenv("REDIRECT_URL");
 		Scanner scan = new Scanner(System.in);
 		SpotifyUserSingleton singleton = SpotifyUserSingleton.getInstance(clientID, clientSecret, redirectURL);
-		System.out.println(singleton.getAuthURL());
+		
 
 		System.out.print("Enter auth code:");
 		String authCode = scan.nextLine();
+		scan.close();
 		try {
 			singleton.useAuthToken(authCode);
 			System.out.println(singleton.getConnectedUser());
-			HashMap<String, String> currentSong = singleton.getCurrentSong();
-			System.out.println(currentSong.get("name") + " - " + currentSong.get("artist"));
+			Song currentSong = singleton.getCurrentSong();
+			System.out.println(currentSong.getTitle() + " - " + currentSong.getArtist());
 			System.out.println("Next Up: " + singleton.getNextUp());
 			System.out.println("Queue:");
-			for (String song : singleton.getQueue()) {
-				System.out.println(song);
+			for (Song song : singleton.getQueue()) {
+				System.out.println(song.getTitle() + " - " + song.getArtist());
 			}
 		} catch (Throwable t) {
 			t.printStackTrace();

@@ -1,6 +1,8 @@
 package com.example.rest_api;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,9 +40,22 @@ public class VestaboardController {
         return spot.useAuthToken(token);
     }
 
+    /**
+     * This endpoint returns a list of songs in the queue.
+     * Each song is represnted as a JSON object with the songs name and artist
+     * NOTE: The first song (at the zeroth element) is the currently playing song.
+     */
     @GetMapping("/current")
-    public void getCurrent() {
-        HashMap<String, String> currentSong = spot.getCurrentSong();
+    public Response getCurrent() {
+        Song currentSong = spot.getCurrentSong();
+        Song[] queue = spot.getQueue();
+        List<Song> songs = new ArrayList<Song>();
+        songs.add(0, currentSong);
+        for (Integer i = 0; i < queue.length; i++) {
+            songs.add(i + 1, queue[i]);
+        }
+        Response response = new Response("success", songs);
+        return response;
     }
 
     @GetMapping("/logout")
@@ -50,20 +65,20 @@ public class VestaboardController {
 
     // @PostMapping("/request_song")
     // public Record requestSong(
-    //         @RequestParam(value = "title") String title,
-    //         @RequestParam(value = "artist") String artist) {
-    //     try {
-    //         Song requested = spot.addToQueue(title, artist);
-    //         if (requested != null) {
-    //             return new Response("success", requested);
-    //         } else {
-    //             return new Response(
-    //                     "failure",
-    //                     new Song("No song added", "No artist added"));
-    //         }
-    //     } catch (Exception e) {
-    //         return new Response("failure", e.getMessage());
-    //     }
+    // @RequestParam(value = "title") String title,
+    // @RequestParam(value = "artist") String artist) {
+    // try {
+    // Song requested = spot.addToQueue(title, artist);
+    // if (requested != null) {
+    // return new Response("success", requested);
+    // } else {
+    // return new Response(
+    // "failure",
+    // new Song("No song added", "No artist added"));
+    // }
+    // } catch (Exception e) {
+    // return new Response("failure", e.getMessage());
+    // }
     // }
 
     /**
