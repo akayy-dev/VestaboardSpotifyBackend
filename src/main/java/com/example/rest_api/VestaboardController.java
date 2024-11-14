@@ -1,26 +1,24 @@
 package com.example.rest_api;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class VestaboardController {
 
-    private Spotify spot;
+    private SpotifyIntegration spot;
 
     public VestaboardController() {
         String clientID = System.getenv("CLIENT_ID");
         String clientSecret = System.getenv("CLIENT_SECRET");
         String redirectURL = System.getenv("REDIRECT_URL");
         String vestaboardKey = System.getenv("VESTABOARD_KEY");
-        spot = new Spotify(clientID, clientSecret, redirectURL, vestaboardKey);
+        spot = new SpotifyIntegration(clientID, clientSecret, redirectURL, vestaboardKey);
     }
 
     @GetMapping("/get_auth_url")
@@ -100,13 +98,6 @@ public class VestaboardController {
     public void update() {
         // This will run every 5 seconds to update the board.
         System.out.println("Checking for update...");
-        try {
-            Boolean isUpdated = spot.run();
-            if (!isUpdated) {
-                System.out.println("No update");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        spot.run();
     }
 }

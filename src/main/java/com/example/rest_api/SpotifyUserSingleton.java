@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import org.apache.hc.core5.http.ParseException;
 
 import se.michaelthelin.spotify.SpotifyApi;
@@ -24,11 +27,36 @@ public class SpotifyUserSingleton {
 	private static SpotifyUserSingleton instance;
 	private SpotifyApi spot;
 	private boolean isAuthenticated;
+	private static final Logger LOG = LogManager.getLogger(SpotifyUserSingleton.class);
 
-	private SpotifyUserSingleton(
-			String clientID,
-			String clientSecret,
-			String redirectURI) {
+	/*
+	 * INPROG: Create an attribute of type song, with the current song playing and
+	 * the song up next.
+	 * This will be used to "cache" the current state of the board and cut down on
+	 * API calls.
+	 * Basic Idea:
+	 * The getCurrentSong() function gets called every 5 seconds by the API
+	 * controller.
+	 * This is generally fine, we won't get rate limited.
+	 * But this repetitive calling in addition to frontend clinets pushes us over
+	 * the limit.
+	 * So getCurrentSong() should set the currentSong and upNext attributes to the
+	 * current and upnext songs,
+	 * then we have a getter method that returns these two.
+	 * Now clients will get the same result as directly calling the endpoint
+	 * but less latency and wont cause rate limiting.
+	 * 
+	 * Read would probably lecture me about how this is coupled code.
+	 */
+	private Song currentSongCached;
+	private Song upNextCached;
+
+	/**
+	 * Singleton for interacting with spotify API.
+	 */
+	private SpotifyUserSingleton(String clientID, String clientSecret, String redirectURI) {
+		// Initialize Logger
+
 		try {
 			spot = new SpotifyApi.Builder()
 					.setClientId(clientID)
@@ -36,19 +64,27 @@ public class SpotifyUserSingleton {
 					.setRedirectUri(SpotifyHttpManager.makeUri(redirectURI))
 					.build();
 		} catch (Exception e) {
-			e.printStackTrace();
-			System.err.println("Make sure your keys are correct.");
+			LOG.warn("Failed to authenticate, are your keys correct? ERROR_MSG: " + e.getLocalizedMessage());
 		}
 
 		isAuthenticated = false;
 	}
 
+	/**
+	 * Retrieves the singleton instance of SpotifyUserSingleton.
+	 *
+	 * @param clientID     The Spotify client ID.
+	 * @param clientSecret The Spotify client secret.
+	 * @param redirectURI  The redirect URI after authentication.
+	 * @return The singleton instance of SpotifyUserSingleton.
+	 */
 	public static SpotifyUserSingleton getInstance(
 			String clientID,
 			String clientSecret,
 			String redirectURI) {
 		if (instance == null) {
 			instance = new SpotifyUserSingleton(clientID, clientSecret, redirectURI);
+			LOG.debug("SpotifyUserSingleton created.");
 		}
 		return instance;
 	}
@@ -76,6 +112,7 @@ public class SpotifyUserSingleton {
 				.show_dialog(true)
 				.build();
 		final String authURI = authorizationCodeUriRequest.execute().toString();
+		LOG.debug("Retrieved auth URL.");
 		return authURI;
 	}
 
@@ -89,6 +126,7 @@ public class SpotifyUserSingleton {
 	 * @throws ParseException         If an error occurs while parsing the response.
 	 */
 	public String getConnectedUser() throws SpotifyWebApiException, IOException, ParseException {
+		LOG.debug("Getting connected user");
 		String username;
 		User me;
 		me = spot
@@ -112,6 +150,7 @@ public class SpotifyUserSingleton {
 	 *                                Spotify Web API.
 	 */
 	public boolean useAuthToken(String auth_code) throws IOException, ParseException, SpotifyWebApiException {
+		LOG.debug("Submitting an auth token");
 		AuthorizationCodeCredentials creds = spot
 				.authorizationCode(auth_code)
 				.build()
@@ -119,6 +158,7 @@ public class SpotifyUserSingleton {
 		spot.setAccessToken(creds.getAccessToken());
 		spot.setRefreshToken(creds.getRefreshToken());
 		isAuthenticated = true;
+		LOG.debug("Auth code is valid.");
 		return isAuthenticated;
 	}
 
@@ -156,7 +196,7 @@ public class SpotifyUserSingleton {
 	 * @throws ParseException         If there is an issue parsing the response.
 	 * @throws SpotifyWebApiException If there is an issue with the Spotify Web API.
 	 */
-	public Song getCurrentSong() throws IOException, ParseException, SpotifyWebApiException {
+	public Song getCurrentSongCached() throws IOException, ParseException, SpotifyWebApiException {
 		final GetUsersCurrentlyPlayingTrackRequest currentlyPlayingRequest = spot.getUsersCurrentlyPlayingTrack()
 				.build();
 		final CurrentlyPlaying currentlyPlaying = currentlyPlayingRequest.execute();
@@ -168,9 +208,9 @@ public class SpotifyUserSingleton {
 			String albumArt = getAlbumArtFromSongID(songID);
 
 			Song currentSong = new Song(songName, trackArtist, albumArt);
+			LOG.debug("Retreiving current song, SONG: " + currentSong.getTitle() + " - " + currentSong.getArtist());
 			return currentSong;
 		} else {
-			System.err.println("No song is currently playing");
 			return null;
 		}
 	}
@@ -257,7 +297,6 @@ public class SpotifyUserSingleton {
 		String redirectURL = System.getenv("REDIRECT_URL");
 		Scanner scan = new Scanner(System.in);
 		SpotifyUserSingleton singleton = SpotifyUserSingleton.getInstance(clientID, clientSecret, redirectURL);
-		
 
 		System.out.print("Enter auth code:");
 		String authCode = scan.nextLine();
@@ -265,7 +304,7 @@ public class SpotifyUserSingleton {
 		try {
 			singleton.useAuthToken(authCode);
 			System.out.println(singleton.getConnectedUser());
-			Song currentSong = singleton.getCurrentSong();
+			Song currentSong = singleton.getCurrentSongCached();
 			System.out.println(currentSong.getTitle() + " - " + currentSong.getArtist());
 			System.out.println("Next Up: " + singleton.getNextUp());
 			System.out.println("Queue:");

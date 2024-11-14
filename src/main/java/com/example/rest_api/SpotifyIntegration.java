@@ -4,19 +4,33 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Spotify extends Vestaboard {
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+public class SpotifyIntegration extends Vestaboard {
+
+    // TODO: Create an attribute of type song, with the current song playing and the
+    // song up next.
+    // This will be used to "cache" the current state of the board and cut down on
+    // API calls.
+    private Song currentSong;
+    private Song upNext;
 
     private SpotifyUserSingleton spot;
     private String lastSong; // Will be used in run() to track if song changed.
 
-    public Spotify(
-            String clientID,
-            String clientSecret,
-            String redirectURI,
-            String vestaboardKey) {
+    
+
+    private static final Logger LOG = LogManager.getLogger(SpotifyIntegration.class);
+
+    public SpotifyIntegration(String clientID, String clientSecret, String redirectURI, String vestaboardKey) {
         super(vestaboardKey);
-        lastSong = "";
+        LOG.debug("SpotifyIntegration created.");
+
+        lastSong = ""; // Used to check if song has changed.
+
         spot = SpotifyUserSingleton.getInstance(clientID, clientSecret, redirectURI);
+        LOG.debug("SpotifyUserSingleton has been created.");
     }
 
     public String getAuthURL() {
@@ -37,8 +51,8 @@ public class Spotify extends Vestaboard {
 
     public void logout() {
         spot.resetAuth();
-        System.out.println("Logged out, clearing the board.");
-        System.out.println(sendMessage(" ")); // Send an empty string to clear the board.
+        LOG.info("Logged out, clearing the board.");
+        sendMessage(" "); // Send an empty string to clear the board.
 
     }
 
@@ -83,15 +97,19 @@ public class Spotify extends Vestaboard {
         Pattern regex = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
         Matcher matcher = regex.matcher(title);
 
-        return matcher.replaceAll("");
+        String strippedTitle = matcher.replaceAll("");
+        LOG.trace("Stripped " + title + " to: " + strippedTitle);
+
+        return strippedTitle;
     }
 
     public Song getCurrentSong() {
         try {
-            Song currentSong = spot.getCurrentSong();
+            Song currentSong = spot.getCurrentSongCached();
             return currentSong;
         } catch (Throwable t) {
-            t.printStackTrace();
+            String message = t.getLocalizedMessage();
+            LOG.warn("Could not get current song, is the user authenticated? ERROR MSG: " + message);
         }
         return null;
     }
@@ -100,7 +118,8 @@ public class Spotify extends Vestaboard {
         try {
             return spot.getNextUp();
         } catch (Throwable t) {
-            t.printStackTrace();
+            String message = t.getLocalizedMessage();
+            LOG.warn("Could not get current song, is the user authenticated? ERROR MSG: " + message);
         }
         return null;
     }
@@ -109,7 +128,8 @@ public class Spotify extends Vestaboard {
         try {
             return spot.getQueue();
         } catch (Throwable t) {
-            t.printStackTrace();
+            String message = t.getLocalizedMessage();
+            LOG.warn("Could not get current song, is the user authenticated? ERROR MSG: " + message);
         }
         return null;
     }
@@ -146,7 +166,11 @@ public class Spotify extends Vestaboard {
     // }
     // }
 
-    public boolean run() throws NotAuthenticated {
+    /**
+     * Main function that runs the main program, designed to be run every n seconds,
+     * if the song playing is different from the last time it ran, update the board
+     */
+    public boolean run() {
         Component nowPlaying = new Component();
         nowPlaying.setAlign("top");
         nowPlaying.setJustify("left");
@@ -160,7 +184,7 @@ public class Spotify extends Vestaboard {
                 String nextUp = trimFeatures(getNextUp());
 
                 if (currentSong != null && !trackName.equals(lastSong)) {
-                    System.err.println("Updating current song " + trackName + " from " + lastSong);
+                    LOG.info("Updating current song " + trackName + " from " + lastSong);
                     nowPlaying.setBody(
                             "{66} Now Playing\n{64} " +
                                     trackName +
@@ -170,25 +194,25 @@ public class Spotify extends Vestaboard {
                                     nextUp);
                     String VBML = nowPlaying.getVBML();
                     HashMap<String, String> result = super.sendRaw(VBML);
-                    System.out.println(result);
                     String status = result.get("status");
-                    if (status.equals("ok")) {
+                    if (status.equals("ok")) { // Check if the board updated successfully.
                         // if there isn't a server error.
                         lastSong = trackName;
+                        return true;
                     } else {
                         // if there is a server error.
-                        System.out.println("An error occurred trying to update the song name.");
+                        LOG.error("An error occurred trying to update the song name. RESPONSE DATA: "
+                                + result.toString());
+                        return false;
                     }
-                    return true;
                 } else {
                     return false;
                 }
             } else {
-                System.out.println("Not authenticated, not checking for updates.");
-                return false;
+                // System.out.println("Not authenticated, not checking for updates.");
+                return true;
             }
         } catch (Exception e) {
-            e.printStackTrace();
             return false;
         }
     }
