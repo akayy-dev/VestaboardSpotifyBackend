@@ -15,11 +15,30 @@ public class SpotifyIntegration extends Vestaboard {
     // API calls.
     private Song currentSong;
     private Song upNext;
+    /*
+     * INPROG: Create an attribute of type song, with the current song playing and
+     * the song up next.
+     * This will be used to "cache" the current state of the board and cut down on
+     * API calls.
+     * Basic Idea:
+     * The getCurrentSong() function gets called every 5 seconds by the API
+     * controller.
+     * This is generally fine, we won't get rate limited.
+     * But this repetitive calling in addition to frontend clinets pushes us over
+     * the limit.
+     * So getCurrentSong() should set the currentSong and upNext attributes to the
+     * current and upnext songs,
+     * then we have a getter method that returns these two.
+     * Now clients will get the same result as directly calling the endpoint
+     * but less latency and wont cause rate limiting.
+     * 
+     * Read would probably lecture me about how this is coupled code.
+     */
+    private Song currentSongCached;
+    private Song upNextCached;
 
     private SpotifyUserSingleton spot;
     private String lastSong; // Will be used in run() to track if song changed.
-
-    
 
     private static final Logger LOG = LogManager.getLogger(SpotifyIntegration.class);
 
@@ -103,9 +122,26 @@ public class SpotifyIntegration extends Vestaboard {
         return strippedTitle;
     }
 
+    /**
+     * Returns a cached list of the current song and whats next, use this to reduce
+     * API calls to spotify.
+     * 
+     * @return A list of songs, the first being the current, the second being the
+     */
+    public Song[] getSongState() {
+        try {
+            Song[] songState = { currentSongCached, upNextCached };
+            return songState;
+        } catch (Throwable t) {
+            String message = t.getLocalizedMessage();
+            LOG.warn("Could not get state. ERROR_MSG: " + message);
+        }
+        return null;
+    }
+
     public Song getCurrentSong() {
         try {
-            Song currentSong = spot.getCurrentSongCached();
+            Song currentSong = spot.getCurrentSong();
             return currentSong;
         } catch (Throwable t) {
             String message = t.getLocalizedMessage();
@@ -114,7 +150,7 @@ public class SpotifyIntegration extends Vestaboard {
         return null;
     }
 
-    public String getNextUp() {
+    public Song getNextUp() {
         try {
             return spot.getNextUp();
         } catch (Throwable t) {
@@ -181,17 +217,24 @@ public class SpotifyIntegration extends Vestaboard {
                 Song currentSong = getCurrentSong();
                 String trackName = trimFeatures(currentSong.getTitle());
                 String trackArtist = currentSong.getArtist();
-                String nextUp = trimFeatures(getNextUp());
+                Song nextUp = getNextUp();
+                String nextUpTrimmed = trimFeatures(nextUp.getTitle());
 
                 if (currentSong != null && !trackName.equals(lastSong)) {
                     LOG.info("Updating current song " + trackName + " from " + lastSong);
+
+                    // update the cache.
+                    currentSongCached = currentSong;
+                    upNextCached = nextUp;
+                    LOG.info("Updated cache, current:" + currentSongCached + " up next: " + upNextCached);
+
                     nowPlaying.setBody(
                             "{66} Now Playing\n{64} " +
                                     trackName +
                                     "\n{68} " +
                                     trackArtist +
                                     "\n{65} Next Up\n{67} " +
-                                    nextUp);
+                                    nextUpTrimmed);
                     String VBML = nowPlaying.getVBML();
                     HashMap<String, String> result = super.sendRaw(VBML);
                     String status = result.get("status");

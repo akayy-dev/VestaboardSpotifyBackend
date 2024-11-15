@@ -45,14 +45,11 @@ public class VestaboardController {
      */
     @GetMapping("/current")
     public Response getCurrent() {
-        Song currentSong = spot.getCurrentSong();
-        Song[] queue = spot.getQueue();
-        List<Song> songs = new ArrayList<Song>();
-        songs.add(0, currentSong);
-        for (Integer i = 0; i < queue.length; i++) {
-            songs.add(i + 1, queue[i]);
-        }
-        Response response = new Response("success", songs);
+        // Song currentSong = spot.getCurrentSong();
+        // Song[] queue = spot.getQueue();
+        // List<Song> songs = new ArrayList<Song>();
+        Song[] currentState = spot.getSongState();
+        Response response = new Response("success", currentState);
         return response;
     }
 

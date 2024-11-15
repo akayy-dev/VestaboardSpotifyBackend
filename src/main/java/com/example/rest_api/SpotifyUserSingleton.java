@@ -196,7 +196,7 @@ public class SpotifyUserSingleton {
 	 * @throws ParseException         If there is an issue parsing the response.
 	 * @throws SpotifyWebApiException If there is an issue with the Spotify Web API.
 	 */
-	public Song getCurrentSongCached() throws IOException, ParseException, SpotifyWebApiException {
+	public Song getCurrentSong() throws IOException, ParseException, SpotifyWebApiException {
 		final GetUsersCurrentlyPlayingTrackRequest currentlyPlayingRequest = spot.getUsersCurrentlyPlayingTrack()
 				.build();
 		final CurrentlyPlaying currentlyPlaying = currentlyPlayingRequest.execute();
@@ -240,13 +240,17 @@ public class SpotifyUserSingleton {
 	 * @throws ParseException         if a parsing error occurs.
 	 * @throws SpotifyWebApiException if an error occurs with the Spotify Web API.
 	 */
-	public String getNextUp() throws IOException, ParseException, SpotifyWebApiException {
+	public Song getNextUp() throws IOException, ParseException, SpotifyWebApiException {
 		final PlaybackQueue queue = spot
 				.getTheUsersQueue()
 				.build()
 				.execute();
 		final IPlaylistItem nextUp = queue.getQueue().get(0);
-		return nextUp.getName();
+		final String songName = nextUp.getName();
+		final String artist = getSongArtistFromID(nextUp.getId());
+		final String albumArt = getAlbumArtFromSongID(nextUp.getId());
+		Song nextSongUp = new Song(songName, artist, albumArt);
+		return nextSongUp;
 	}
 
 	/**
@@ -304,9 +308,9 @@ public class SpotifyUserSingleton {
 		try {
 			singleton.useAuthToken(authCode);
 			System.out.println(singleton.getConnectedUser());
-			Song currentSong = singleton.getCurrentSongCached();
+			Song currentSong = singleton.getCurrentSong();
 			System.out.println(currentSong.getTitle() + " - " + currentSong.getArtist());
-			System.out.println("Next Up: " + singleton.getNextUp());
+			System.out.println("Next Up: " + singleton.getNextUp().getTitle());
 			System.out.println("Queue:");
 			for (Song song : singleton.getQueue()) {
 				System.out.println(song.getTitle() + " - " + song.getArtist());
