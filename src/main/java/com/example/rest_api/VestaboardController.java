@@ -39,18 +39,17 @@ public class VestaboardController {
     }
 
     /**
-     * This endpoint returns a list of songs in the queue.
-     * Each song is represnted as a JSON object with the songs name and artist
-     * NOTE: The first song (at the zeroth element) is the currently playing song.
+     * Returns the current state of the board.
      */
     @GetMapping("/current")
-    public Response getCurrent() {
-        // Song currentSong = spot.getCurrentSong();
-        // Song[] queue = spot.getQueue();
-        // List<Song> songs = new ArrayList<Song>();
-        Song[] currentState = spot.getSongState();
-        Response response = new Response("success", currentState);
-        return response;
+    public StateResponse getCurrentState() {
+        Song[] songs = spot.getSongState();
+        Song currentSong = songs[0];
+        Song upNext = songs[1];
+
+        StateResponse stateResponse = new StateResponse(spot.isConnected(), spot.getConnectedUser(), spot.isPlaying(),
+                currentSong, upNext);
+        return stateResponse;
     }
 
     @GetMapping("/logout")
@@ -96,5 +95,6 @@ public class VestaboardController {
         // This will run every 5 seconds to update the board.
         System.out.println("Checking for update...");
         spot.run();
+        spot.updateCache();
     }
 }

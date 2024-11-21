@@ -8,8 +8,6 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
-
 public class SpotifyIntegration extends Vestaboard {
 
     // TODO: Create an attribute of type song, with the current song playing and the
@@ -24,7 +22,7 @@ public class SpotifyIntegration extends Vestaboard {
      */
     private Song upNextCached;
     /**
-     * The name of the user connected stored in the cache.
+     * The usernamename of the user connected stored in the cache.
      */
     private String connectedUserCached;
 
@@ -32,6 +30,11 @@ public class SpotifyIntegration extends Vestaboard {
      * Whether or not a user is connected stored in the cache.
      */
     private Boolean isConnectedCached;
+
+    /**
+     * Cache boolean representing whether or not the user is playing anything
+     */
+    private Boolean isPlayingCached;
 
     private SpotifyUserSingleton spot;
     private String lastSong; // Will be used in run() to track if song changed.
@@ -137,8 +140,12 @@ public class SpotifyIntegration extends Vestaboard {
     /**
      * @return A boolean variable representing whether or not the user is connected.
      */
-    public Boolean isConnectedState() {
+    public Boolean isConnected() {
         return isConnectedCached;
+    }
+
+    public Boolean isPlaying() {
+        return isPlayingCached;
     }
 
     /**
@@ -185,6 +192,7 @@ public class SpotifyIntegration extends Vestaboard {
         }
         return null;
     }
+
 
     /**
      * NOTE: Commented out because I haven't implemented this with thi
@@ -241,6 +249,7 @@ public class SpotifyIntegration extends Vestaboard {
 
                     LOG.info("Updated cache, current:" + currentSongCached + " up next: " + upNextCached);
 
+                    // Update the board.
                     nowPlaying.setBody(
                             "{66} Now Playing\n{64} " +
                                     trackName +
@@ -251,6 +260,7 @@ public class SpotifyIntegration extends Vestaboard {
                     String VBML = nowPlaying.getVBML();
                     HashMap<String, String> result = super.sendRaw(VBML);
                     String status = result.get("status");
+
                     if (status.equals("ok")) { // Check if the board updated successfully.
                         // if there isn't a server error.
                         lastSong = trackName;
@@ -279,12 +289,15 @@ public class SpotifyIntegration extends Vestaboard {
     public void updateCache() {
         try {
             isConnectedCached = spot.isAuthenticated();
-            currentSongCached = getCurrentSong();
-            upNextCached = getNextUp();
-            connectedUserCached = getConnectedUser();
-            LOG.info("Updated cache: isConnectedCached: " + isConnectedCached + ", currentSongCached: "
-                    + currentSongCached + ", upNextCached: " + upNextCached + ", connectedUserCached: "
-                    + connectedUserCached);
+            currentSongCached = spot.getCurrentSong();
+            upNextCached = spot.getNextUp();
+            connectedUserCached = spot.getConnectedUser();
+            isPlayingCached = spot.isPlaying();
+            // LOG.info("Updated cache: isConnectedCached: " + isConnectedCached + ",
+            // currentSongCached: "
+            // + currentSongCached + ", upNextCached: " + upNextCached + ",
+            // connectedUserCached: "
+            // + connectedUserCached);
         } catch (Exception e) {
             LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
         }
