@@ -101,8 +101,7 @@ public class SpotifyIntegration extends Vestaboard {
     }
 
     public Boolean getAuthStatus() {
-        // TODO: eventually this will return the auth status and the user connected.
-        return spot.isAuthenticated();
+        return isConnectedCached;
     }
 
     private String trimFeatures(String title) {
@@ -230,7 +229,7 @@ public class SpotifyIntegration extends Vestaboard {
 
         try {
             // Won't run if spotify isn't authenticated, that way I won't get any errors.
-            if (spot.isAuthenticated()) {
+            if (isConnectedCached) {
                 Song currentSong = getCurrentSong();
                 String trackName = trimFeatures(currentSong.getTitle());
                 String trackArtist = currentSong.getArtist();
@@ -240,9 +239,6 @@ public class SpotifyIntegration extends Vestaboard {
                 if (currentSong != null && !trackName.equals(lastSong)) {
                     LOG.info("Updating current song " + trackName + " from " + lastSong);
 
-                    // update the cache.
-                    currentSongCached = currentSong;
-                    upNextCached = nextUp;
                     LOG.info("Updated cache, current:" + currentSongCached + " up next: " + upNextCached);
 
                     nowPlaying.setBody(
@@ -283,9 +279,12 @@ public class SpotifyIntegration extends Vestaboard {
     public void updateCache() {
         try {
             isConnectedCached = spot.isAuthenticated();
-            currentSongCached = spot.getCurrentSong();
-            upNextCached = spot.getNextUp();
-            connectedUserCached = spot.getConnectedUser();
+            currentSongCached = getCurrentSong();
+            upNextCached = getNextUp();
+            connectedUserCached = getConnectedUser();
+            LOG.info("Updated cache: isConnectedCached: " + isConnectedCached + ", currentSongCached: "
+                    + currentSongCached + ", upNextCached: " + upNextCached + ", connectedUserCached: "
+                    + connectedUserCached);
         } catch (Exception e) {
             LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
         }
