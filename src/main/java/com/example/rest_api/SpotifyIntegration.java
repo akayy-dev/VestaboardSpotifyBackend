@@ -1,5 +1,6 @@
 package com.example.rest_api;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -7,35 +8,30 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
+
 public class SpotifyIntegration extends Vestaboard {
 
     // TODO: Create an attribute of type song, with the current song playing and the
     // song up next.
-    // This will be used to "cache" the current state of the board and cut down on
-    // API calls.
-    private Song currentSong;
-    private Song upNext;
-    /*
-     * INPROG: Create an attribute of type song, with the current song playing and
-     * the song up next.
-     * This will be used to "cache" the current state of the board and cut down on
-     * API calls.
-     * Basic Idea:
-     * The getCurrentSong() function gets called every 5 seconds by the API
-     * controller.
-     * This is generally fine, we won't get rate limited.
-     * But this repetitive calling in addition to frontend clinets pushes us over
-     * the limit.
-     * So getCurrentSong() should set the currentSong and upNext attributes to the
-     * current and upnext songs,
-     * then we have a getter method that returns these two.
-     * Now clients will get the same result as directly calling the endpoint
-     * but less latency and wont cause rate limiting.
-     * 
-     * Read would probably lecture me about how this is coupled code.
+
+    /**
+     * What song is currently playing stored in the cache.
      */
     private Song currentSongCached;
+    /**
+     * What song is up next stored in the cache.
+     */
     private Song upNextCached;
+    /**
+     * The name of the user connected stored in the cache.
+     */
+    private String connectedUserCached;
+
+    /**
+     * Whether or not a user is connected stored in the cache.
+     */
+    private Boolean isConnectedCached;
 
     private SpotifyUserSingleton spot;
     private String lastSong; // Will be used in run() to track if song changed.
@@ -139,7 +135,22 @@ public class SpotifyIntegration extends Vestaboard {
         return null;
     }
 
-    public Song getCurrentSong() {
+    /**
+     * @return A boolean variable representing whether or not the user is connected.
+     */
+    public Boolean isConnectedState() {
+        return isConnectedCached;
+    }
+
+    /**
+     * Retrieves the currently playing song from the Spotify service.
+     * 
+     * @return the currently playing {@link Song} if available, or {@code null} if
+     *         an error occurs or no song is playing.
+     * @throws RuntimeException if there is an issue with the Spotify service or
+     *                          user authentication.
+     */
+    private Song getCurrentSong() {
         try {
             Song currentSong = spot.getCurrentSong();
             return currentSong;
@@ -150,7 +161,13 @@ public class SpotifyIntegration extends Vestaboard {
         return null;
     }
 
-    public Song getNextUp() {
+    /**
+     * Retrieves the next song in the queue from the Spotify integration.
+     * 
+     * @return the next song in the queue, or null if an error occurs.
+     * @throws Throwable if there is an issue retrieving the next song.
+     */
+    private Song getNextUp() {
         try {
             return spot.getNextUp();
         } catch (Throwable t) {
@@ -204,7 +221,7 @@ public class SpotifyIntegration extends Vestaboard {
 
     /**
      * Main function that runs the main program, designed to be run every n seconds,
-     * if the song playing is different from the last time it ran, update the board
+     * if the song playing is different from the last time it ran, update the board.
      */
     public boolean run() {
         Component nowPlaying = new Component();
@@ -257,6 +274,20 @@ public class SpotifyIntegration extends Vestaboard {
             }
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    /**
+     * Update the cache.
+     */
+    public void updateCache() {
+        try {
+            isConnectedCached = spot.isAuthenticated();
+            currentSongCached = spot.getCurrentSong();
+            upNextCached = spot.getNextUp();
+            connectedUserCached = spot.getConnectedUser();
+        } catch (Exception e) {
+            LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
         }
     }
 }
