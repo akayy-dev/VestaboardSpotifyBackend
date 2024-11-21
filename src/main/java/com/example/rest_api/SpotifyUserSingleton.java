@@ -16,6 +16,7 @@ import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
 import se.michaelthelin.spotify.model_objects.IPlaylistItem;
 import se.michaelthelin.spotify.model_objects.credentials.AuthorizationCodeCredentials;
 import se.michaelthelin.spotify.model_objects.miscellaneous.CurrentlyPlaying;
+import se.michaelthelin.spotify.model_objects.miscellaneous.CurrentlyPlayingContext;
 import se.michaelthelin.spotify.model_objects.special.PlaybackQueue;
 import se.michaelthelin.spotify.requests.authorization.authorization_code.AuthorizationCodeUriRequest;
 import se.michaelthelin.spotify.requests.data.player.GetUsersCurrentlyPlayingTrackRequest;
@@ -29,27 +30,6 @@ public class SpotifyUserSingleton {
 	private boolean isAuthenticated;
 	private static final Logger LOG = LogManager.getLogger(SpotifyUserSingleton.class);
 
-	/*
-	 * INPROG: Create an attribute of type song, with the current song playing and
-	 * the song up next.
-	 * This will be used to "cache" the current state of the board and cut down on
-	 * API calls.
-	 * Basic Idea:
-	 * The getCurrentSong() function gets called every 5 seconds by the API
-	 * controller.
-	 * This is generally fine, we won't get rate limited.
-	 * But this repetitive calling in addition to frontend clinets pushes us over
-	 * the limit.
-	 * So getCurrentSong() should set the currentSong and upNext attributes to the
-	 * current and upnext songs,
-	 * then we have a getter method that returns these two.
-	 * Now clients will get the same result as directly calling the endpoint
-	 * but less latency and wont cause rate limiting.
-	 * 
-	 * Read would probably lecture me about how this is coupled code.
-	 */
-	private Song currentSongCached;
-	private Song upNextCached;
 
 	/**
 	 * Singleton for interacting with spotify API.
@@ -135,6 +115,22 @@ public class SpotifyUserSingleton {
 				.execute();
 		username = me.getDisplayName().toString();
 		return username;
+	}
+
+	/**
+	 * Checks if the user is currently playing a song.
+	 * 
+	 * @return true if playing something, false if not.
+	 */
+	public boolean isPlaying() throws IOException, ParseException, SpotifyWebApiException {
+		CurrentlyPlayingContext playbackState = spot.getInformationAboutUsersCurrentPlayback().build().execute();
+
+		// playbackState returns null if user isn't playing anything
+		if (playbackState == null) {
+			return false;
+		}
+
+		return playbackState.getIs_playing();
 	}
 
 	/**
