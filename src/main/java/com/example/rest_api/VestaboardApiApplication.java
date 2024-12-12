@@ -39,12 +39,12 @@ public class VestaboardApiApplication {
 		return new WebMvcConfigurer() {
 			@Override
 			public void addCorsMappings(CorsRegistry registry) {
-				registry.addMapping("/request_song").allowedOrigins("http://localhost:3001");
-				registry.addMapping("/current").allowedOrigins("http://localhost:3001");
-				registry.addMapping("/get_auth_url").allowedOrigins("http://localhost:3001");
-				registry.addMapping("/send_auth_token").allowedOrigins("http://localhost:3001");
-				registry.addMapping("/auth_status").allowedOrigins("http://localhost:3001");
-				registry.addMapping("/*").allowedOrigins("http://localhost:3001");
+				registry.addMapping("/request_song").allowedOrigins("http://localhost:3000");
+				registry.addMapping("/current").allowedOrigins("http://localhost:3000");
+				registry.addMapping("/get_auth_url").allowedOrigins("http://localhost:3000");
+				registry.addMapping("/send_auth_token").allowedOrigins("http://localhost:3000");
+				registry.addMapping("/auth_status").allowedOrigins("http://localhost:3000");
+				registry.addMapping("/*").allowedOrigins("http://localhost:3000");
 			}
 		};
 	}
