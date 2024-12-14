@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class SpotifyIntegration extends Vestaboard {
+public class SpotifyIntegration extends Vestaboard implements Subject {
 
     // TODO: Create an attribute of type song, with the current song playing and the
     // song up next.
@@ -21,10 +21,6 @@ public class SpotifyIntegration extends Vestaboard {
      * What song is up next stored in the cache.
      */
     private Song upNextCached;
-    /**
-     * The usernamename of the user connected stored in the cache.
-     */
-    private String connectedUserCached;
 
     /**
      * Whether or not a user is connected stored in the cache.
@@ -46,6 +42,9 @@ public class SpotifyIntegration extends Vestaboard {
         LOG.debug("SpotifyIntegration created.");
 
         lastSong = ""; // Used to check if song has changed.
+
+        SongChangeObserver observer = new SongChangeObserver(vestaboardKey);
+        attach(observer);
 
         spot = SpotifyUserSingleton.getInstance(clientID, clientSecret, redirectURI);
         LOG.debug("SpotifyUserSingleton has been created.");
@@ -73,24 +72,6 @@ public class SpotifyIntegration extends Vestaboard {
         sendMessage(" "); // Send an empty string to clear the board.
 
     }
-
-    // private Track[] searchForTrack(String query) throws NotAuthenticated {
-    // if (isAuthenticated) {
-    // try {
-    // // Search for the song
-    // final Paging<Track> tracks = spot
-    // .searchTracks(query)
-    // .build()
-    // .execute();
-    // return tracks.getItems();
-    // } catch (Exception e) {
-    // e.printStackTrace();
-    // return null;
-    // }
-    // } else {
-    // throw new NotAuthenticated("Not authenticated yet!");
-    // }
-    // }
 
     public String getConnectedUser() {
         String connectedUser;
@@ -193,7 +174,6 @@ public class SpotifyIntegration extends Vestaboard {
         return null;
     }
 
-
     /**
      * NOTE: Commented out because I haven't implemented this with thi
      * // singleton pattern, will get to later.
@@ -230,7 +210,7 @@ public class SpotifyIntegration extends Vestaboard {
      * Main function that runs the main program, designed to be run every n seconds,
      * if the song playing is different from the last time it ran, update the board.
      */
-    public boolean run() {
+    public void run() {
         Component nowPlaying = new Component();
         nowPlaying.setAlign("top");
         nowPlaying.setJustify("left");
@@ -245,41 +225,11 @@ public class SpotifyIntegration extends Vestaboard {
                 String nextUpTrimmed = trimFeatures(nextUp.getTitle());
 
                 if (currentSong != null && !trackName.equals(lastSong)) {
-                    LOG.info("Updating current song " + trackName + " from " + lastSong);
-
-                    LOG.info("Updated cache, current:" + currentSongCached + " up next: " + upNextCached);
-
-                    // Update the board.
-                    nowPlaying.setBody(
-                            "{66} Now Playing\n{64} " +
-                                    trackName +
-                                    "\n{68} " +
-                                    trackArtist +
-                                    "\n{65} Next Up\n{67} " +
-                                    nextUpTrimmed);
-                    String VBML = nowPlaying.getVBML();
-                    HashMap<String, String> result = super.sendRaw(VBML);
-                    String status = result.get("status");
-
-                    if (status.equals("ok")) { // Check if the board updated successfully.
-                        // if there isn't a server error.
-                        lastSong = trackName;
-                        return true;
-                    } else {
-                        // if there is a server error.
-                        LOG.error("An error occurred trying to update the song name. RESPONSE DATA: "
-                                + result.toString());
-                        return false;
-                    }
-                } else {
-                    return false;
+                    notifyObserver(ObserverEvents.NEW_SONG);
                 }
-            } else {
-                // System.out.println("Not authenticated, not checking for updates.");
-                return true;
-            }
+            } 
         } catch (Exception e) {
-            return false;
+            e.printStackTrace();
         }
     }
 
@@ -291,13 +241,7 @@ public class SpotifyIntegration extends Vestaboard {
             isConnectedCached = spot.isAuthenticated();
             currentSongCached = spot.getCurrentSong();
             upNextCached = spot.getNextUp();
-            connectedUserCached = spot.getConnectedUser();
             isPlayingCached = spot.isPlaying();
-            // LOG.info("Updated cache: isConnectedCached: " + isConnectedCached + ",
-            // currentSongCached: "
-            // + currentSongCached + ", upNextCached: " + upNextCached + ",
-            // connectedUserCached: "
-            // + connectedUserCached);
         } catch (Exception e) {
             LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
         }

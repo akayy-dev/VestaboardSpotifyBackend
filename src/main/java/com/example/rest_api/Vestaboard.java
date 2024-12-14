@@ -11,10 +11,14 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class Vestaboard {
 
     private String key;
     private Gson gson;
+	private static final Logger LOG = LogManager.getLogger(Vestaboard.class.getName());
 
     public Vestaboard(String key) {
         this.key = key;
@@ -98,7 +102,6 @@ public class Vestaboard {
             HttpPost request = new HttpPost("https://rw.vestaboard.com");
             request.setHeader("X-Vestaboard-Read-Write-Key", this.key);
             request.setHeader("Content-Type", "application/json");
-            // System.err.println(body);
             final StringEntity requestBody = new StringEntity(body);
             request.setEntity(requestBody);
 

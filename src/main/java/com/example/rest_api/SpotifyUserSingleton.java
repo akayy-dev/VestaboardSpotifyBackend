@@ -30,7 +30,6 @@ public class SpotifyUserSingleton {
 	private boolean isAuthenticated;
 	private static final Logger LOG = LogManager.getLogger(SpotifyUserSingleton.class);
 
-
 	/**
 	 * Singleton for interacting with spotify API.
 	 */
