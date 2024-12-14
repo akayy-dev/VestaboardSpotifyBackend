@@ -15,7 +15,7 @@ public interface Subject {
 	};
 
 	@SuppressWarnings("unchecked")
-	default void notifyObserver(ObserverEvents event) {
+	default void notifyObservers(ObserverEvents event) {
 		for (Observer<? extends Subject> o : observers) {
 			((Observer<Subject>) o).update(event, this);
 		}

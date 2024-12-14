@@ -1,10 +1,5 @@
 package com.example.rest_api;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,7 +28,6 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
     private Boolean isPlayingCached;
 
     private SpotifyUserSingleton spot;
-    private String lastSong; // Will be used in run() to track if song changed.
 
     private static final Logger LOG = LogManager.getLogger(SpotifyIntegration.class);
 
@@ -41,7 +35,7 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         super(vestaboardKey);
         LOG.debug("SpotifyIntegration created.");
 
-        lastSong = ""; // Used to check if song has changed.
+        isConnectedCached = false;
 
         SongChangeObserver observer = new SongChangeObserver(vestaboardKey);
         attach(observer);
@@ -63,14 +57,15 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return spot.isAuthenticated();
+        isConnectedCached = spot.isAuthenticated();
+        return isConnectedCached;
     }
 
     public void logout() {
+        LOG.info("Logged out, resetting spotify auth");
         spot.resetAuth();
-        LOG.info("Logged out, clearing the board.");
-        sendMessage(" "); // Send an empty string to clear the board.
-
+        isConnectedCached = false;
+        notifyObservers(ObserverEvents.LOGOUT);
     }
 
     public String getConnectedUser() {
@@ -86,19 +81,6 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
 
     public Boolean getAuthStatus() {
         return isConnectedCached;
-    }
-
-    private String trimFeatures(String title) {
-        // use regex to remove features from the title.
-        String pattern = "\\s*\\(.*?\\b(ft|featuring|with|feat)\\b.*?\\)";
-
-        Pattern regex = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
-        Matcher matcher = regex.matcher(title);
-
-        String strippedTitle = matcher.replaceAll("");
-        LOG.trace("Stripped " + title + " to: " + strippedTitle);
-
-        return strippedTitle;
     }
 
     /**
@@ -174,11 +156,6 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         return null;
     }
 
-    /**
-     * NOTE: Commented out because I haven't implemented this with thi
-     * // singleton pattern, will get to later.
-     */
-
     // public Song addToQueue(String songName, String songArtist) throws
     // NotAuthenticated {
     // if (isAuthenticated) {
@@ -219,15 +196,41 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
             // Won't run if spotify isn't authenticated, that way I won't get any errors.
             if (isConnectedCached) {
                 Song currentSong = getCurrentSong();
-                String trackName = trimFeatures(currentSong.getTitle());
-                String trackArtist = currentSong.getArtist();
-                Song nextUp = getNextUp();
-                String nextUpTrimmed = trimFeatures(nextUp.getTitle());
+                Song upNext = getNextUp();
 
-                if (currentSong != null && !trackName.equals(lastSong)) {
-                    notifyObserver(ObserverEvents.NEW_SONG);
+                /*
+                 * BUG: Apparently this if statement doesn't run on the first update when a user
+                 * connects,
+                 * meaning that the board will only start working after the first song/queue
+                 * change,
+                 * figure this out later.
+                 */
+                if (currentSong != null && !currentSong.equals(currentSongCached)) {
+                    LOG.info("Now playing changed from " + currentSongCached.getTitle() + " to "
+                            + currentSong.getTitle());
+
+                    /*
+                     * update the cache to match the current song before
+                     * notifying the observer
+                     */
+                    currentSongCached = currentSong;
+                    upNextCached = upNext;
+
+                    notifyObservers(ObserverEvents.NEW_SONG);
                 }
-            } 
+                // also update if the queue is updated. will come useful when requests are
+                // implemented.
+                else if (upNext != null && !upNext.equals(upNextCached)) {
+
+                    LOG.info("Up next changed from " + upNextCached.getTitle() + " to " + upNext.getTitle());
+
+                    // see above
+                    currentSongCached = currentSong;
+                    upNextCached = upNext;
+
+                    notifyObservers(ObserverEvents.NEW_SONG);
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -237,13 +240,15 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
      * Update the cache.
      */
     public void updateCache() {
-        try {
-            isConnectedCached = spot.isAuthenticated();
-            currentSongCached = spot.getCurrentSong();
-            upNextCached = spot.getNextUp();
-            isPlayingCached = spot.isPlaying();
-        } catch (Exception e) {
-            LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
+        if (isConnectedCached) {
+            try {
+                isConnectedCached = spot.isAuthenticated();
+                currentSongCached = spot.getCurrentSong();
+                upNextCached = spot.getNextUp();
+                isPlayingCached = spot.isPlaying();
+            } catch (Exception e) {
+                LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
+            }
         }
     }
 }
