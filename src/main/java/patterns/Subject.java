@@ -1,4 +1,4 @@
-package com.example.rest_api;
+package patterns;
 
 import java.util.ArrayList;
 

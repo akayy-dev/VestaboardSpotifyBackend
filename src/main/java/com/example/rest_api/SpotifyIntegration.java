@@ -3,6 +3,11 @@ package com.example.rest_api;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import patterns.ObserverEvents;
+import patterns.SongChangeObserver;
+import patterns.SpotifyUserSingleton;
+import patterns.Subject;
+
 public class SpotifyIntegration extends Vestaboard implements Subject {
 
     // TODO: Create an attribute of type song, with the current song playing and the

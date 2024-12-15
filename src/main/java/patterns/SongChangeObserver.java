@@ -1,8 +1,12 @@
-package com.example.rest_api;
+package patterns;
 
 import java.util.HashMap;
 
-import com.example.rest_api.Subject;
+import com.example.rest_api.Component;
+import com.example.rest_api.Song;
+import com.example.rest_api.SpotifyIntegration;
+import com.example.rest_api.Vestaboard;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
