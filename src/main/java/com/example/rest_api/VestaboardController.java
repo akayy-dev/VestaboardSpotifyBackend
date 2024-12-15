@@ -93,6 +93,5 @@ public class VestaboardController {
         // This will run every 5 seconds to update the board.
         System.out.println("Checking for update...");
         spot.run();
-        spot.updateCache();
     }
 }

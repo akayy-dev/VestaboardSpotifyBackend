@@ -1,5 +1,7 @@
 package com.example.rest_api;
 
+import java.util.Observer;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -7,6 +9,8 @@ import patterns.ObserverEvents;
 import patterns.SongChangeObserver;
 import patterns.SpotifyUserSingleton;
 import patterns.Subject;
+import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
+import se.michaelthelin.spotify.exceptions.detailed.TooManyRequestsException;
 
 public class SpotifyIntegration extends Vestaboard implements Subject {
 
@@ -32,6 +36,11 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
      */
     private Boolean isPlayingCached;
 
+    /**
+     * Cache string representing the connected user.
+     */
+    private String connectedUserCached;
+
     private SpotifyUserSingleton spot;
 
     private static final Logger LOG = LogManager.getLogger(SpotifyIntegration.class);
@@ -56,11 +65,21 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         return authURL;
     }
 
+    /**
+     * When the user submits an auth token, this method is responsible
+     * for "logging in" the user.
+     * 
+     * @param auth_code
+     * @return
+     */
     public boolean useAuthToken(String auth_code) {
         try {
             spot.useAuthToken(auth_code);
+            updateCache();
+            LOG.info("Auth token submitted, logged in as " + connectedUserCached);
+            notifyObservers(ObserverEvents.NEW_SONG);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.info("Error submitting auth token, ERROR_MSG: " + e.getMessage());
         }
         isConnectedCached = spot.isAuthenticated();
         return isConnectedCached;
@@ -128,10 +147,26 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         try {
             Song currentSong = spot.getCurrentSong();
             return currentSong;
+        } catch (TooManyRequestsException e) {
+            Integer retryAfter = e.getRetryAfter();
+            LOG.warn("getCurrentSong() raised TooManyRequests exceptions, backing off for " + retryAfter + " seconds.");
+
+            // backoff
+            try {
+                // NOTE: Not a fan of this backoff implementation,
+                // try to see if this can be moved to a RateLimitObserver class.
+                Thread.sleep(retryAfter * 1000);
+                LOG.info("Backoff finished, retrying.");
+                getCurrentSong();
+            } catch (InterruptedException i) {
+                LOG.warn("Backoff attempt interrupted, ERROR_MSG: " + i.getMessage());
+            }
+
         } catch (Throwable t) {
             String message = t.getLocalizedMessage();
             LOG.warn("Could not get current song, is the user authenticated? ERROR MSG: " + message);
         }
+
         return null;
     }
 
@@ -160,33 +195,6 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         }
         return null;
     }
-
-    // public Song addToQueue(String songName, String songArtist) throws
-    // NotAuthenticated {
-    // if (isAuthenticated) {
-    // // Search for the song
-    // Track[] tracks = searchForTrack(songName + " " + songArtist);
-
-    // try {
-    // // Add the selected track to the queue
-    // String selectedTrackURI = tracks[0].getUri();
-    // spot
-    // .addItemToUsersPlaybackQueue(selectedTrackURI)
-    // .build()
-    // .execute();
-
-    // String songNameInQueue = tracks[0].getName();
-    // String songArtistInQueue = tracks[0].getArtists()[0].getName();
-
-    // return new Song(songNameInQueue, songArtistInQueue);
-    // } catch (Exception e) {
-    // e.printStackTrace();
-    // return null;
-    // }
-    // } else {
-    // throw new NotAuthenticated("Not authenticated yet!");
-    // }
-    // }
 
     /**
      * Main function that runs the main program, designed to be run every n seconds,
@@ -243,17 +251,17 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
 
     /**
      * Update the cache.
+     * Call this sparingly, as this can result in rate limits.
      */
     public void updateCache() {
-        if (isConnectedCached) {
-            try {
-                isConnectedCached = spot.isAuthenticated();
-                currentSongCached = spot.getCurrentSong();
-                upNextCached = spot.getNextUp();
-                isPlayingCached = spot.isPlaying();
-            } catch (Exception e) {
-                LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
-            }
+        try {
+            isConnectedCached = spot.isAuthenticated();
+            currentSongCached = spot.getCurrentSong();
+            connectedUserCached = spot.getConnectedUser();
+            upNextCached = spot.getNextUp();
+            isPlayingCached = spot.isPlaying();
+        } catch (Exception e) {
+            LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
         }
     }
 }
