@@ -1,4 +1,4 @@
-package com.example.rest_api.events;
+package com.vesta.rest_api.events;
 
 public enum ObservableEvents {
 	NEW_SONG(),

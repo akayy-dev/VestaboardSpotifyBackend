@@ -1,7 +1,7 @@
-package com.example.rest_api.patterns;
+package com.vesta.rest_api.patterns;
 
-import com.example.rest_api.events.EventPayload;
-import com.example.rest_api.events.ObservableEvents;
+import com.vesta.rest_api.events.EventPayload;
+import com.vesta.rest_api.events.ObservableEvents;
 
 
 public class SpotifyAPIObserver implements Observer{

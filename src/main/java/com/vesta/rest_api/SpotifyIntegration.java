@@ -1,13 +1,13 @@
-package com.example.rest_api;
+package com.vesta.rest_api;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.example.rest_api.events.EventPayload;
-import com.example.rest_api.events.ObservableEvents;
-import com.example.rest_api.patterns.SongChangeObserver;
-import com.example.rest_api.patterns.SpotifyUserSingleton;
-import com.example.rest_api.patterns.Subject;
+import com.vesta.rest_api.events.EventPayload;
+import com.vesta.rest_api.events.ObservableEvents;
+import com.vesta.rest_api.patterns.SongChangeObserver;
+import com.vesta.rest_api.patterns.SpotifyUserSingleton;
+import com.vesta.rest_api.patterns.Subject;
 
 import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
 import se.michaelthelin.spotify.exceptions.detailed.TooManyRequestsException;

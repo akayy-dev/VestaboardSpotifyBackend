@@ -1,16 +1,16 @@
-package com.example.rest_api.patterns;
+package com.vesta.rest_api.patterns;
 
 import java.util.HashMap;
 
-import com.example.rest_api.Component;
-import com.example.rest_api.Song;
-import com.example.rest_api.SpotifyIntegration;
-import com.example.rest_api.Vestaboard;
-import com.example.rest_api.events.EventPayload;
-import com.example.rest_api.events.ObservableEvents;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.vesta.rest_api.Component;
+import com.vesta.rest_api.Song;
+import com.vesta.rest_api.SpotifyIntegration;
+import com.vesta.rest_api.Vestaboard;
+import com.vesta.rest_api.events.EventPayload;
+import com.vesta.rest_api.events.ObservableEvents;
 
 public class SongChangeObserver extends Vestaboard implements Observer {
 	private static final Logger LOG = LogManager.getLogger(SongChangeObserver.class.getName());

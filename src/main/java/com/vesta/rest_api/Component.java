@@ -1,4 +1,4 @@
-package com.example.rest_api;
+package com.vesta.rest_api;
 
 import java.util.HashMap;
 

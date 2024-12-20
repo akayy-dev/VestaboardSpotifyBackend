@@ -1,4 +1,4 @@
-package com.example.rest_api;
+package com.vesta.rest_api;
 
 import com.google.gson.Gson;
 import java.util.HashMap;
