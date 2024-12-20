@@ -1,4 +1,4 @@
-package patterns;
+package com.example.rest_api.patterns;
 
 import java.util.HashMap;
 
@@ -6,11 +6,13 @@ import com.example.rest_api.Component;
 import com.example.rest_api.Song;
 import com.example.rest_api.SpotifyIntegration;
 import com.example.rest_api.Vestaboard;
+import com.example.rest_api.events.EventPayload;
+import com.example.rest_api.events.ObservableEvents;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class SongChangeObserver extends Vestaboard implements Observer<SpotifyIntegration> {
+public class SongChangeObserver extends Vestaboard implements Observer {
 	private static final Logger LOG = LogManager.getLogger(SongChangeObserver.class.getName());
 
 	public SongChangeObserver(String vestaboardKey) {
@@ -47,14 +49,16 @@ public class SongChangeObserver extends Vestaboard implements Observer<SpotifyIn
 	 * @param subject The SpotifyIntegration object.
 	 */
 	@Override
-	public void update(ObserverEvents event, SpotifyIntegration subject) {
-		if (event == ObserverEvents.NEW_SONG) {
-			Song nowPlaying = subject.getSongState()[0];
-			Song upNext = subject.getSongState()[1];
+	public void update(EventPayload<?> event) {
+		if (event.getType() == ObservableEvents.NEW_SONG) {
+			Song[] songs = (Song[]) event.getPayload();
+			System.out.println("LENGTH: " + songs.length);
+			Song nowPlaying = songs[0];
+			Song upNext = songs[1];
 			updateBoard(nowPlaying, upNext);
 		}
 
-		if (event == ObserverEvents.LOGOUT) {
+		if (event.getType() == ObservableEvents.LOGOUT) {
 			LOG.info("Logged out, clearing the board");
 			sendMessage("");
 		}

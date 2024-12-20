@@ -88,7 +88,7 @@ public class VestaboardController {
         return spot.getConnectedUser();
     }
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 8000)
     public void update() {
         // This will run every 5 seconds to update the board.
         System.out.println("Checking for update...");

@@ -1,14 +1,14 @@
 package com.example.rest_api;
 
-import java.util.Observer;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import patterns.ObserverEvents;
-import patterns.SongChangeObserver;
-import patterns.SpotifyUserSingleton;
-import patterns.Subject;
+import com.example.rest_api.events.EventPayload;
+import com.example.rest_api.events.ObservableEvents;
+import com.example.rest_api.patterns.SongChangeObserver;
+import com.example.rest_api.patterns.SpotifyUserSingleton;
+import com.example.rest_api.patterns.Subject;
+
 import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
 import se.michaelthelin.spotify.exceptions.detailed.TooManyRequestsException;
 
@@ -50,9 +50,10 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         LOG.debug("SpotifyIntegration created.");
 
         isConnectedCached = false;
+        isPlayingCached = false;
 
-        SongChangeObserver observer = new SongChangeObserver(vestaboardKey);
-        attach(observer);
+        SongChangeObserver onSongChange = new SongChangeObserver(vestaboardKey);
+        attach(onSongChange);
 
         spot = SpotifyUserSingleton.getInstance(clientID, clientSecret, redirectURI);
         LOG.debug("SpotifyUserSingleton has been created.");
@@ -77,7 +78,6 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
             spot.useAuthToken(auth_code);
             updateCache();
             LOG.info("Auth token submitted, logged in as " + connectedUserCached);
-            notifyObservers(ObserverEvents.NEW_SONG);
         } catch (Exception e) {
             LOG.info("Error submitting auth token, ERROR_MSG: " + e.getMessage());
         }
@@ -89,7 +89,8 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         LOG.info("Logged out, resetting spotify auth");
         spot.resetAuth();
         isConnectedCached = false;
-        notifyObservers(ObserverEvents.LOGOUT);
+
+        notifyObservers(ObservableEvents.LOGOUT);
     }
 
     public String getConnectedUser() {
@@ -97,8 +98,9 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         try {
             connectedUser = spot.getConnectedUser();
             return connectedUser;
-        } catch (Throwable t) {
-            t.printStackTrace();
+        } catch (Exception e) {
+            LOG.warn("Could not get connected user due to " + e.getClass().getSimpleName() + " ERROR MSG: "
+                    + e.getMessage());
         }
         return null;
     }
@@ -146,6 +148,7 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
     private Song getCurrentSong() {
         try {
             Song currentSong = spot.getCurrentSong();
+            isPlayingCached = true;
             return currentSong;
         } catch (TooManyRequestsException e) {
             Integer retryAfter = e.getRetryAfter();
@@ -162,9 +165,23 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
                 LOG.warn("Backoff attempt interrupted, ERROR_MSG: " + i.getMessage());
             }
 
-        } catch (Throwable t) {
-            String message = t.getLocalizedMessage();
-            LOG.warn("Could not get current song, is the user authenticated? ERROR MSG: " + message);
+        } catch (SpotifyWebApiException s) {
+            String message = s.getLocalizedMessage();
+            LOG.warn("Could not get current song due to SpotifyWebApiException ERROR MSG: " + message);
+
+            if (message.equals("The access token expired")) {
+                LOG.warn("Expired access token, should create a method to refresh access token.");
+                notifyObservers(ObservableEvents.SPOTIFY_TOKEN_EXPIRED);
+            }
+
+        } catch (IndexOutOfBoundsException e) {
+            // typically is thrown when the user isn't playing anything at all
+            LOG.info("Not playing anything.");
+            isPlayingCached = false;
+        } catch (Exception e) {
+            String errorName = e.getClass().getSimpleName();
+            String message = e.getLocalizedMessage();
+            LOG.warn("Could not get current song due to " + errorName + "ERROR MSG: " + message);
         }
 
         return null;
@@ -179,9 +196,12 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
     private Song getNextUp() {
         try {
             return spot.getNextUp();
+        } catch (NullPointerException n) {
+            // typically thrown when nothing is playing
+            LOG.info("Could not get next up due to NullPointerException, likely user isn't playing anything.");
         } catch (Throwable t) {
             String message = t.getLocalizedMessage();
-            LOG.warn("Could not get current song, is the user authenticated? ERROR MSG: " + message);
+            LOG.warn("Could not get next song, is the user authenticated? ERROR MSG: " + message);
         }
         return null;
     }
@@ -191,7 +211,7 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
             return spot.getQueue();
         } catch (Throwable t) {
             String message = t.getLocalizedMessage();
-            LOG.warn("Could not get current song, is the user authenticated? ERROR MSG: " + message);
+            LOG.warn("Could not get queue, is the user authenticated? ERROR MSG: " + message);
         }
         return null;
     }
@@ -210,6 +230,17 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
             if (isConnectedCached) {
                 Song currentSong = getCurrentSong();
                 Song upNext = getNextUp();
+                isPlayingCached = spot.isPlaying();
+
+                // if cached songs are empty, that likely means user just logged in.
+                if (currentSongCached == null && upNextCached == null) {
+                    LOG.trace("Cached songs are empty, updating currentSongCached and upNextCached");
+                    currentSongCached = currentSong;
+                    upNextCached = upNext;
+                    Song[] songs = new Song[] { currentSongCached, upNextCached };
+                    EventPayload<Song[]> payload = new EventPayload<Song[]>(ObservableEvents.NEW_SONG, songs);
+                    notifyObservers(payload);
+                }
 
                 /*
                  * BUG: Apparently this if statement doesn't run on the first update when a user
@@ -228,8 +259,9 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
                      */
                     currentSongCached = currentSong;
                     upNextCached = upNext;
-
-                    notifyObservers(ObserverEvents.NEW_SONG);
+                    Song[] songs = new Song[] { currentSongCached, upNextCached };
+                    EventPayload<Song[]> payload = new EventPayload<Song[]>(ObservableEvents.NEW_SONG, songs);
+                    notifyObservers(payload);
                 }
                 // also update if the queue is updated. will come useful when requests are
                 // implemented.
@@ -241,7 +273,11 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
                     currentSongCached = currentSong;
                     upNextCached = upNext;
 
-                    notifyObservers(ObserverEvents.NEW_SONG);
+                    // Construct payload for observer
+                    Song[] songs = new Song[] { currentSong, currentSongCached };
+                    EventPayload<Song[]> eventPayload = new EventPayload<Song[]>(ObservableEvents.NEW_SONG, songs);
+
+                    notifyObservers(eventPayload);
                 }
             }
         } catch (Exception e) {
@@ -255,11 +291,14 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
      */
     public void updateCache() {
         try {
-            isConnectedCached = spot.isAuthenticated();
-            currentSongCached = spot.getCurrentSong();
-            connectedUserCached = spot.getConnectedUser();
-            upNextCached = spot.getNextUp();
             isPlayingCached = spot.isPlaying();
+
+            if (isPlayingCached) {
+                isConnectedCached = spot.isAuthenticated();
+                currentSongCached = spot.getCurrentSong();
+                connectedUserCached = spot.getConnectedUser();
+                upNextCached = spot.getNextUp();
+            }
         } catch (Exception e) {
             LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());
         }
