@@ -12,10 +12,15 @@ import com.vesta.rest_api.patterns.Subject;
 import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
 import se.michaelthelin.spotify.exceptions.detailed.TooManyRequestsException;
 
-public class SpotifyIntegration extends Vestaboard implements Subject {
-
-    // TODO: Create an attribute of type song, with the current song playing and the
-    // song up next.
+/**
+ * Respoonsible for facillitating the connection of the
+ * Spotify API to the Vestaboard API.
+ * 
+ * The class only directly interacts with the Spotify API,
+ * it's a {@link Subject} to send an update event to the
+ * {@link SongChangeObserver }.
+ */
+public class SpotifyIntegration implements Subject {
 
     /**
      * What song is currently playing stored in the cache.
@@ -46,7 +51,6 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
     private static final Logger LOG = LogManager.getLogger(SpotifyIntegration.class);
 
     public SpotifyIntegration(String clientID, String clientSecret, String redirectURI, String vestaboardKey) {
-        super(vestaboardKey);
         LOG.debug("SpotifyIntegration created.");
 
         isConnectedCached = false;
@@ -59,9 +63,13 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         LOG.debug("SpotifyUserSingleton has been created.");
     }
 
+    /**
+     * Get the Authorizaiton URL that gives
+     * the "Allow Spotify to connect to" dialog
+     * 
+     * @return The authorization URL.
+     */
     public String getAuthURL() {
-        // Get authorization code.
-        // This used to be ONE line in python.
         final String authURL = spot.getAuthURL();
         return authURL;
     }
@@ -85,6 +93,7 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         return isConnectedCached;
     }
 
+    /** Disconnects the users account from the application. */
     public void logout() {
         LOG.info("Logged out, resetting spotify auth");
         spot.resetAuth();
@@ -133,6 +142,10 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         return isConnectedCached;
     }
 
+    /**
+     * @return A boolean variable representing whether or not the user is currently
+     *         playing a song.
+     */
     public Boolean isPlaying() {
         return isPlayingCached;
     }
@@ -206,6 +219,10 @@ public class SpotifyIntegration extends Vestaboard implements Subject {
         return null;
     }
 
+    /**
+     * Get's the songs in the players QUEUE:
+     * NOTE: This is untested.
+     */
     public Song[] getQueue() {
         try {
             return spot.getQueue();

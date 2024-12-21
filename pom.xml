@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.vesta</groupId>
 	<artifactId>rest-api</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.5-OBSERVER</version>
 	<name>VestaboardAPI</name>
 	<description>API for connecting spotify and vestabpard</description>
 	<url/>
