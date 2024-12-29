@@ -3,6 +3,7 @@ package com.vesta.rest_api;
 import com.google.gson.Gson;
 import java.util.HashMap;
 import java.util.Map;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -18,7 +19,7 @@ public class Vestaboard {
 
     private String key;
     private Gson gson;
-	private static final Logger LOG = LogManager.getLogger(Vestaboard.class.getName());
+    private static final Logger LOG = LogManager.getLogger(Vestaboard.class.getName());
 
     public Vestaboard(String key) {
         this.key = key;
@@ -45,16 +46,11 @@ public class Vestaboard {
             String result = EntityUtils.toString(response.getEntity());
 
             Gson gson = new Gson();
-            Map<String, Map<String, String>> map = gson.fromJson(
+            Map<String, Map<String, String>> json = gson.fromJson(
                     result,
-                    HashMap.class);
-
-            // returns id and layout
-            Map<String, String> message = map.get("currentMessage");
-
-            // TODO: Make this return a 2D array of integers, not a string.
-            String layout = message.get("layout");
-            return layout;
+                    Map.class);
+            String state = json.get("currentMessage").get("layout");
+            return state;
         } catch (Exception e) {
             e.printStackTrace();
             return null;

@@ -1,33 +1,69 @@
 package com.vesta.rest_api;
 
-import com.vesta.rest_api.events.EventPayload;
-import com.vesta.rest_api.events.ObservableEvents;
-import com.vesta.rest_api.patterns.SongChangeObserver;
-import com.vesta.rest_api.patterns.Subject;
 // Logging
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Represents the state of the connected Spotify User
- * It's a subject, so it'll use the {@link SongChangeObserver}
- * to sync it's state with the board.
+ * Automatically syncs with the board
  */
-public class SpotifyState implements Subject {
+public class SpotifyState extends Vestaboard {
 
+	/**
+	 * Represents the current song being played.
+	 */
 	private Song currentSong;
+	/**
+	 * Represents the next song to be played.
+	 */
 	private Song nextSong;
 
+	/**
+	 * Indicates whether the Spotify player is currently playing.
+	 */
 	private boolean isPlaying;
+	/**
+	 * Indicates whether the Spotify service is connected.
+	 */
 	private boolean isConnected;
 
+	/**
+	 * Logger instance for SpotifyState class.
+	 * This logger is used to log messages for the SpotifyState class.
+	 * It is initialized using LogManager.getLogger with SpotifyState.class as the
+	 * parameter.
+	 */
 	private static final Logger LOG = LogManager.getLogger(SpotifyState.class);
 
+	/**
+	 * A flag indicating whether a display update is pending.
+	 * When set to true, indicates that changes have been made but not yet displayed on the Vestaboard.
+	 * When set to false, indicates that all changes have been successfully displayed.
+	 * 
+	 * Used primarily in schedulePush()
+	 */
+	private boolean updatePending = false;
+	
+
+	/**
+	 * A Timer instance used for scheduling and executing tasks at specified intervals.
+	 * The timer runs as a dedicated thread for executing scheduled tasks.
+	 *
+	 * Used primarily in schedulePush()
+	 */
+	private final Timer timer = new Timer();
+
 	public SpotifyState() {
+		super(System.getenv("VESTABOARD_KEY"));
 		LOG.info("Attaching observers to SpotifyState object.");
-		SongChangeObserver onSongChange = new SongChangeObserver();
-		attach(onSongChange);
 		LOG.info("Observers attached!");
+
+		// set the song states to empty songs by default.
+		currentSong = new Song("", "", "");
+		nextSong = new Song("", "", "");
 	}
 
 	/**
@@ -49,12 +85,35 @@ public class SpotifyState implements Subject {
 
 			LOG.info("Updating next song in state to " + nextSong.getTitle());
 			this.nextSong = nextSong;
-
-			Song[] songs = { this.currentSong, this.nextSong };
-			EventPayload<Song[]> payload = new EventPayload<>(ObservableEvents.NEW_SONG, songs);
-
-			notifyObservers(payload);
+			schedulePush();
 		}
+
+	}
+
+	/**
+	 * "push" the state to the board. basically updates it.
+	 */
+	private void push() {
+		Component nowPlaying = new Component();
+		nowPlaying.setAlign("top");
+		nowPlaying.setJustify("left");
+		nowPlaying.setHeight(3);
+		nowPlaying.setBody(
+				"{66} Now Playing\n{64} " +
+						currentSong.getTrimmedTitle() +
+						"\n{6} " +
+						currentSong.getArtist());
+		Component upNext = new Component();
+		upNext.setAlign("top");
+		upNext.setJustify("left");
+		upNext.setHeight(3);
+		upNext.setBody(
+				"\n{65} Next Up\n{67} " +
+						nextSong.getTrimmedTitle());
+		String VBML = Component.compileComponents(nowPlaying, upNext);
+		LOG.info("Submitting state to board, NOW PLAYING: " + currentSong.getTrimmedTitle() + " UP NEXT: "
+				+ nextSong.getTrimmedTitle());
+		sendRaw(VBML);
 	}
 
 	public Song getCurrentSong() {
@@ -66,11 +125,7 @@ public class SpotifyState implements Subject {
 
 			LOG.info("Updating current song in state to " + currentSong.getTitle());
 			this.currentSong = currentSong;
-
-			Song[] songs = { this.currentSong, this.nextSong };
-			EventPayload<Song[]> payload = new EventPayload<>(ObservableEvents.NEW_SONG, songs);
-
-			notifyObservers(payload);
+			schedulePush();
 		}
 	};
 
@@ -112,4 +167,24 @@ public class SpotifyState implements Subject {
 		this.isConnected = isConnected;
 	}
 
+	
+	/**
+	 * Schedules a push update to the board with a 100ms delay if no update is currently pending.
+	 * This method uses a timer to avoid excessive updates and ensures that only one update
+	 * is scheduled at a time by checking and setting the updatePending flag.
+	 * Once the scheduled push is complete, the updatePending flag is reset to false.
+	 */
+	private void schedulePush() {
+		// debounce
+		if (!updatePending) {
+			updatePending = true;
+			timer.schedule(new TimerTask() {
+				@Override
+				public void run() {
+					push();
+					updatePending = false;
+				}
+			}, 100); // Delay of 100 milliseconds
+		}
+	}
 }

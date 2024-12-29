@@ -23,15 +23,6 @@ import se.michaelthelin.spotify.exceptions.detailed.TooManyRequestsException;
 public class SpotifyIntegration implements Subject {
 
     /**
-     * What song is currently playing stored in the cache.
-     */
-    private Song currentSongCached;
-    /**
-     * What song is up next stored in the cache.
-     */
-    private Song upNextCached;
-
-    /**
      * Whether or not a user is connected stored in the cache.
      */
     private Boolean isConnectedCached;
@@ -50,11 +41,15 @@ public class SpotifyIntegration implements Subject {
 
     private static final Logger LOG = LogManager.getLogger(SpotifyIntegration.class);
 
+    private SpotifyState board;
+
     public SpotifyIntegration(String clientID, String clientSecret, String redirectURI, String vestaboardKey) {
         LOG.debug("SpotifyIntegration created.");
 
         isConnectedCached = false;
         isPlayingCached = false;
+
+        board = new SpotifyState();
 
         SongChangeObserver onSongChange = new SongChangeObserver(vestaboardKey);
         attach(onSongChange);
@@ -126,7 +121,7 @@ public class SpotifyIntegration implements Subject {
      */
     public Song[] getSongState() {
         try {
-            Song[] songState = { currentSongCached, upNextCached };
+            Song[] songState = { board.getCurrentSong(), board.getNextSong() };
             return songState;
         } catch (Throwable t) {
             String message = t.getLocalizedMessage();
@@ -173,7 +168,7 @@ public class SpotifyIntegration implements Subject {
                 // try to see if this can be moved to a RateLimitObserver class.
                 Thread.sleep(retryAfter * 1000);
                 LOG.info("Backoff finished, retrying.");
-                getCurrentSong();
+                return getCurrentSong();
             } catch (InterruptedException i) {
                 LOG.warn("Backoff attempt interrupted, ERROR_MSG: " + i.getMessage());
             }
@@ -238,10 +233,6 @@ public class SpotifyIntegration implements Subject {
      * if the song playing is different from the last time it ran, update the board.
      */
     public void run() {
-        Component nowPlaying = new Component();
-        nowPlaying.setAlign("top");
-        nowPlaying.setJustify("left");
-
         try {
             // Won't run if spotify isn't authenticated, that way I won't get any errors.
             if (isConnectedCached) {
@@ -250,13 +241,10 @@ public class SpotifyIntegration implements Subject {
                 isPlayingCached = spot.isPlaying();
 
                 // if cached songs are empty, that likely means user just logged in.
-                if (currentSongCached == null && upNextCached == null) {
+                if (board.getCurrentSong() == null && board.getNextSong() == null) {
                     LOG.trace("Cached songs are empty, updating currentSongCached and upNextCached");
-                    currentSongCached = currentSong;
-                    upNextCached = upNext;
-                    Song[] songs = new Song[] { currentSongCached, upNextCached };
-                    EventPayload<Song[]> payload = new EventPayload<Song[]>(ObservableEvents.NEW_SONG, songs);
-                    notifyObservers(payload);
+                    board.setCurrentSong(currentSong);
+                    board.setNextSong(upNext);
                 }
 
                 /*
@@ -266,35 +254,26 @@ public class SpotifyIntegration implements Subject {
                  * change,
                  * figure this out later.
                  */
-                if (currentSong != null && !currentSong.equals(currentSongCached)) {
-                    LOG.info("Now playing changed from " + currentSongCached.getTitle() + " to "
+                if (currentSong != null && !currentSong.equals(board.getCurrentSong())) {
+                    LOG.info("Now playing changed from " + board.getCurrentSong().getTitle() + " to "
                             + currentSong.getTitle());
 
                     /*
                      * update the cache to match the current song before
                      * notifying the observer
                      */
-                    currentSongCached = currentSong;
-                    upNextCached = upNext;
-                    Song[] songs = new Song[] { currentSongCached, upNextCached };
-                    EventPayload<Song[]> payload = new EventPayload<Song[]>(ObservableEvents.NEW_SONG, songs);
-                    notifyObservers(payload);
+                    board.setCurrentSong(currentSong);
+                    board.setNextSong(upNext);
                 }
                 // also update if the queue is updated. will come useful when requests are
                 // implemented.
-                else if (upNext != null && !upNext.equals(upNextCached)) {
+                else if (upNext != null && !upNext.equals(board.getNextSong())) {
 
-                    LOG.info("Up next changed from " + upNextCached.getTitle() + " to " + upNext.getTitle());
+                    LOG.info("Up next changed from " + board.getNextSong().getTitle() + " to " + upNext.getTitle());
 
                     // see above
-                    currentSongCached = currentSong;
-                    upNextCached = upNext;
-
-                    // Construct payload for observer
-                    Song[] songs = new Song[] { currentSong, currentSongCached };
-                    EventPayload<Song[]> eventPayload = new EventPayload<Song[]>(ObservableEvents.NEW_SONG, songs);
-
-                    notifyObservers(eventPayload);
+                    board.setCurrentSong(currentSong);
+                    board.setNextSong(upNext);
                 }
             }
         } catch (Exception e) {
@@ -312,9 +291,9 @@ public class SpotifyIntegration implements Subject {
 
             if (isPlayingCached) {
                 isConnectedCached = spot.isAuthenticated();
-                currentSongCached = spot.getCurrentSong();
+                board.setCurrentSong(spot.getCurrentSong());
                 connectedUserCached = spot.getConnectedUser();
-                upNextCached = spot.getNextUp();
+                board.setNextSong(spot.getNextUp());
             }
         } catch (Exception e) {
             LOG.warn("Error updating cache, ERROR MSG: " + e.getMessage());

@@ -4,6 +4,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public record Song(String title, String artist, String albumArt) { 
+	
 	public String getTitle() {
 		return title;
 	}
