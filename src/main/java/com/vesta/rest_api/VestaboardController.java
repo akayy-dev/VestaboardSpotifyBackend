@@ -1,6 +1,5 @@
 package com.vesta.rest_api;
 
-
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -88,7 +87,14 @@ public class VestaboardController {
         return spot.getConnectedUser();
     }
 
+    @GetMapping("/request_song")
+    public Song requestSong(@RequestParam(value = "title") String title,
+            @RequestParam(value = "artist") String artist) {
+        return spot.requestSong(title, artist);
+    }
+
     @Scheduled(fixedRate = 8000)
+
     public void update() {
         // This will run every 5 seconds to update the board.
         System.out.println("Checking for update...");

@@ -3,7 +3,6 @@ package com.vesta.rest_api;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.vesta.rest_api.events.EventPayload;
 import com.vesta.rest_api.events.ObservableEvents;
 import com.vesta.rest_api.patterns.SongChangeObserver;
 import com.vesta.rest_api.patterns.SpotifyUserSingleton;
@@ -202,14 +201,16 @@ public class SpotifyIntegration implements Subject {
      * @throws Throwable if there is an issue retrieving the next song.
      */
     private Song getNextUp() {
-        try {
-            return spot.getNextUp();
-        } catch (NullPointerException n) {
-            // typically thrown when nothing is playing
-            LOG.info("Could not get next up due to NullPointerException, likely user isn't playing anything.");
-        } catch (Throwable t) {
-            String message = t.getLocalizedMessage();
-            LOG.warn("Could not get next song, is the user authenticated? ERROR MSG: " + message);
+        if (isPlayingCached) {
+            try {
+                return spot.getNextUp();
+            } catch (NullPointerException n) {
+                // typically thrown when nothing is playing
+                LOG.info("Could not get next up due to NullPointerException, likely user isn't playing anything.");
+            } catch (Throwable t) {
+                String message = t.getLocalizedMessage();
+                LOG.warn("Could not get next song, is the user authenticated? ERROR MSG: " + message);
+            }
         }
         return null;
     }
@@ -226,6 +227,11 @@ public class SpotifyIntegration implements Subject {
             LOG.warn("Could not get queue, is the user authenticated? ERROR MSG: " + message);
         }
         return null;
+    }
+
+    public Song requestSong(String trackName, String artistName) {
+        String query = "\"track\":" + trackName + "\"artist:\"" + artistName;
+        return spot.addToQueue(query);
     }
 
     /**

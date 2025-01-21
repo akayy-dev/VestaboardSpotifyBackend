@@ -10,6 +10,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.vesta.rest_api.Song;
 
+import org.apache.commons.logging.Log;
 import org.apache.hc.core5.http.ParseException;
 
 import se.michaelthelin.spotify.SpotifyApi;
@@ -278,6 +279,33 @@ public class SpotifyUserSingleton {
 			queueList.add(songObj);
 		}
 		return queueList.toArray(new Song[0]);
+	}
+
+	/**
+	 * Search a song by it's name and add to it a users queue.
+	 * 
+	 * @param query The name of the song to search for
+	 * @return The song added to the queue.
+	 */
+	public Song addToQueue(String query) {
+		try {
+			LOG.info("Looking for " + query + " to add to queue.");
+			Track[] searchedSongs = spot.searchTracks(query).build().execute().getItems();
+			Track selectedSong = searchedSongs[0]; // Add the first song found in the search to the queue.
+			spot.addItemToUsersPlaybackQueue(selectedSong.getUri()).build().execute();
+			String songName = selectedSong.getName();
+			String artist = selectedSong.getArtists()[0].getName();
+			String albumArt = selectedSong.getAlbum().getImages()[0].getUrl();
+			LOG.info("Added " + songName + " by " + artist + " to queue");
+
+			return new Song(songName, artist, albumArt);
+		} catch (SpotifyWebApiException | IOException | ParseException e) {
+			LOG.error("Failed add song " + query + " to queue" + " ERROR TYPE: " + e.getClass().getName()
+					+ " ERROR MSG: "
+					+ e.getLocalizedMessage());
+			return null;
+		}
+
 	}
 
 	/**
