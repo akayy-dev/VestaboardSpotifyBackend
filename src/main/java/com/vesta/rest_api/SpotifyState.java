@@ -101,7 +101,7 @@ public class SpotifyState extends Vestaboard {
 		nowPlaying.setBody(
 				"{66} Now Playing\n{64} " +
 						currentSong.getTrimmedTitle() +
-						"\n{6} " +
+						"\n{63} " +
 						currentSong.getArtist());
 		Component upNext = new Component();
 		upNext.setAlign("top");
